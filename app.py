@@ -103,7 +103,7 @@ def load_data():
         'Favorite_Track': '',
         'My_Review': '',
         'Country': 'Brasil',
-        'Spotify_Link': ''
+        'Spotify_Link': 'Spotify'
     }
     for col, val_padrao in colunas_obrigatorias.items():
         if col not in df.columns:
@@ -137,11 +137,11 @@ def buscar_capa_album(artist, album):
 
 def obter_link_spotify(row):
     link_custom = str(row.get('Spotify_Link', '')).strip()
-    # Se houver um link web real com http, usa ele. Senão, gera o link de busca refinado para o álbum e artista da linha.
+    # Se for um link web real com http, usa ele. Caso contrário, usa a busca tradicional do Spotify.
     if link_custom.startswith('http'):
         return link_custom
     
-    query_sp = urllib.parse.quote(f"album:{row['Album']} artist:{row['Artist']}")
+    query_sp = urllib.parse.quote(f"{row['Artist']} {row['Album']}")
     return f"https://open.spotify.com/search/{query_sp}"
 
 df_albums = load_data()
@@ -342,7 +342,7 @@ elif aba == "inserir manualmente":
         m_pais = st.text_input("país", value="Brasil")
         m_album = st.text_input("nome do álbum")
         m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
-        m_spotify = st.text_input("link do álbum no Spotify")
+        m_spotify = st.text_input("link do álbum no Spotify", value="Spotify")
         
         c_m1, c_m2 = st.columns(2)
         with c_m1:
