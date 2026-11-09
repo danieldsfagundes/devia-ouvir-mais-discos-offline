@@ -35,13 +35,6 @@ st.markdown("""
         border: 1px solid #2a2a2a;
         margin-bottom: 20px;
     }
-    .disco-dia-container {
-        background-color: #181818;
-        border: 1px solid #2d2d2d;
-        border-radius: 14px;
-        padding: 24px;
-        margin-bottom: 30px;
-    }
     .spotify-btn {
         display: inline-flex;
         align-items: center;
@@ -94,8 +87,6 @@ def load_data():
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     
-    # Cálculo da Nota Final (1 a 5) para ordenação padrão
-    # Nota capa (1 a 5) * 0.3 + Nota proporção faixas (1 a 5) * 0.7
     prop = df['Liked_Tracks'] / df['Total_Tracks']
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
     
@@ -124,7 +115,7 @@ if df_albums.empty:
 if 'popup_ativo' not in st.session_state:
     st.session_state.popup_ativo = True
 
-# MENU LATERAL REORGANIZADO
+# MENU LATERAL
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio(
     "navegar", 
@@ -141,51 +132,47 @@ if aba == "disco do dia":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
     
-    st.markdown("### ✨ disco do dia em destaque")
+    st.markdown("### 💿 disco do dia")
     
-    with st.container():
-        st.markdown('<div class="disco-dia-container">', unsafe_allow_html=True)
-        col_pop1, col_pop2 = st.columns([1, 2])
+    col_pop1, col_pop2 = st.columns([1, 2])
+    
+    with col_pop1:
+        st.markdown(f"### {album_hoje['Album']}")
+        st.text(f"Artista: {album_hoje['Artist']}")
+        st.text(f"Lançamento: {album_hoje['Released']}")
         
-        with col_pop1:
-            st.markdown(f"### {album_hoje['Album']}")
-            st.text(f"artista: {album_hoje['Artist']}")
-            st.text(f"lançamento: {album_hoje['Released']}")
+        capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
+        if capa_url:
+            st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
+        else:
+            st.info("💿 Capa indisponível no momento")
+        
+        query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
+        st.markdown(f"""
+            <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
+                <span class="spotify-icon">🎧</span> ouvir álbum completo
+            </a>
+        """, unsafe_allow_html=True)
+        
+    with col_pop2:
+        st.markdown("#### 🎵 registre sua audição")
+        st.markdown("nota da capa (1 a 5)")
+        
+        atual_rating = int(album_hoje.get('Cover_Rating', 3)) - 1
+        if atual_rating < 0 or atual_rating > 4:
+            atual_rating = 2
             
-            capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
-            if capa_url:
-                st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
-            else:
-                st.info("💿 Capa indisponível no momento")
-            
-            query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
-            st.markdown(f"""
-                <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
-                    <span class="spotify-icon">🎧</span> ouvir álbum completo
-                </a>
-            """, unsafe_allow_html=True)
-            
-        with col_pop2:
-            st.markdown("#### 🎯 registre sua audição")
-            st.markdown("nota da capa (1 a 5)")
-            
-            atual_rating = int(album_hoje.get('Cover_Rating', 3)) - 1
-            if atual_rating < 0 or atual_rating > 4:
-                atual_rating = 2
-                
-            feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
-            cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
-            
-            tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
-            lik_p = st.number_input("faixas que gostou (escala de 1 a 5 proporcional)", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
-            
-            if st.button("salvar audição do dia", type="primary"):
-                st.success("audição registrada com sucesso!")
-                st.rerun()
-                
-        st.markdown('</div>', unsafe_allow_html=True)
+        feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
+        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
+        
+        tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
+        lik_p = st.number_input("faixas que gostou (escala de 1 a 5 proporcional)", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
+        
+        if st.button("salvar audição do dia", type="primary"):
+            st.success("audição registrada com sucesso!")
+            st.rerun()
 
-# 2. ABA: COLEÇÃO & HISTÓRICO (DEFAULT: NOTA MAIS ALTA)
+# 2. ABA: COLEÇÃO & HISTÓRICO
 elif aba == "coleção & histórico":
     st.markdown("### 📚 sua coleção de vinis & histórico")
     
@@ -208,7 +195,6 @@ elif aba == "coleção & histórico":
     if filtro_ano != "todos":
         df_filtrado = df_filtrado[df_filtrado['Released'] == filtro_ano]
 
-    # Ordenação padrão por nota mais alta
     df_filtrado = df_filtrado.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
 
     st.caption(f"exibindo {len(df_filtrado)} discos no acervo (ordenados da nota mais alta para a mais baixa).")
@@ -241,8 +227,8 @@ elif aba == "coleção & histórico":
             c_ed1, c_ed2 = st.columns(2)
             with c_ed1:
                 st.markdown(f"### {row_sel['Album']}")
-                st.text(f"artista: {row_sel['Artist']}")
-                st.text(f"ano: {row_sel['Released']}")
+                st.text(f"Artista: {row_sel['Artist']}")
+                st.text(f"Lançamento: {row_sel['Released']}")
                 
                 capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
                 if capa_detalhe:
