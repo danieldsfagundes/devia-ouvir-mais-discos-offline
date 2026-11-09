@@ -4,7 +4,6 @@ import datetime
 import urllib.parse
 import os
 
-# Configuração da página com tema escuro imersivo (Estética de Vinil)
 st.set_page_config(
     page_title="devia ouvir mais discos", 
     page_icon="🎶", 
@@ -12,6 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Estilização CSS personalizada com a estética de vinil (Dark Mode)
 st.markdown("""
     <style>
     .main {
@@ -37,34 +37,34 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='color: #ffffff; font-weight: 800; letter-spacing: -1px;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
 st.caption("sua coleção digital inspirada em vinis • acervo unificado")
 
-# --- CARREGAMENTO DO SEU CSV REAL (375 DISCOS) ---
 @st.cache_data
 def load_data():
     if not os.path.exists("albums.csv"):
-        st.error("⚠️ O arquivo 'albums.csv' não foi encontrado no GitHub. Faça o upload dele na raiz do seu repositório!")
+        st.error("⚠️ O arquivo 'albums.csv' não foi encontrado no GitHub. Envie o arquivo para a raiz do repositório.")
         return pd.DataFrame()
     
     df = pd.read_csv("albums.csv")
     
-    # Preenche colunas de controle pessoal se não existirem
-    if 'Cover_Rating' not in df.columns:
-        df['Cover_Rating'] = 3
-    if 'Total_Tracks' not in df.columns:
-        df['Total_Tracks'] = 10
-    if 'Liked_Tracks' not in df.columns:
-        df['Liked_Tracks'] = 8
-    if 'Favorite_Track' not in df.columns:
-        df['Favorite_Track'] = ""
-    if 'My_Review' not in df.columns:
-        df['My_Review'] = ""
-    if 'Genres' not in df.columns:
-        df['Genres'] = "geral"
-    if 'List' not in df.columns:
-        df['List'] = "1001 list"
-        
+    # Padronização e preenchimento de colunas essenciais
+    colunas_obrigatorias = {
+        'Cover_Rating': 3,
+        'Total_Tracks': 10,
+        'Liked_Tracks': 8,
+        'Favorite_Track': '',
+        'My_Review': '',
+        'Genres': 'geral',
+        'Origin': 'Geral',
+        'List': 'Geral'
+    }
+    for col, val_padrao in colunas_obrigatorias.items():
+        if col not in df.columns:
+            df[col] = val_padrao
+
+    # Remove duplicatas baseadas no artista e no álbum
+    df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     return df
 
 df_albums = load_data()
@@ -72,15 +72,14 @@ df_albums = load_data()
 if df_albums.empty:
     st.stop()
 
-# Controle de Estado para o Pop-up do Álbum do Dia
 if 'popup_ativo' not in st.session_state:
     st.session_state.popup_ativo = True
 
-# --- MENU LATERAL ---
+# Menu Lateral
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio("navegar", ["coleção & histórico", "álbum do dia", "estatísticas"])
 
-# --- POP-UP DO ÁLBUM DO DIA ---
+# Pop-up do Álbum do Dia com Integração Spotify
 if st.session_state.popup_ativo and aba == "coleção & histórico":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
@@ -91,10 +90,14 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
             st.markdown(f"### 💿 {album_hoje['Album']}")
             st.text(f"artista: {album_hoje['Artist']}")
             st.text(f"lançamento: {album_hoje['Released']}")
-            st.text(f"origem/lista: {album_hoje['List']}")
             
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
-            st.markdown(f"🎧 [ouvir versão original no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
+            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
+            # Player embutido do Spotify para prévia imediata e exibição da capa/álbum
+            st.markdown(f"""
+                <iframe src="https://open.spotify.com/embed/search/{query_sp}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+            """, unsafe_allow_html=True)
+            
         with col_pop2:
             st.markdown("#### 🎯 registre sua audição")
             cov_p = st.slider("nota da capa (1 a 5)", 1, 5, int(album_hoje.get('Cover_Rating', 4)), key="pop_cov")
@@ -106,21 +109,18 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
                 st.session_state.popup_ativo = False
                 st.rerun()
 
-# --- ABA 1: COLEÇÃO & HISTÓRICO ---
+# Aba de Coleção & Histórico
 if aba == "coleção & histórico":
     st.markdown("---")
     st.markdown("### 📚 sua coleção de vinis & histórico")
     
     col_f1, col_f2, col_f3 = st.columns(3)
-    
     with col_f1:
-        artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().unique().tolist())
+        artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
         filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis)
-        
     with col_f2:
-        listas_disponiveis = ["todos"] + sorted(df_albums['List'].dropna().unique().tolist())
+        listas_disponiveis = ["todos"] + sorted(df_albums['List'].dropna().astype(str).unique().tolist())
         filtro_lista = st.selectbox("filtrar por lista / coleção", listas_disponiveis)
-        
     with col_f3:
         anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
         filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + anos_disponiveis)
@@ -133,13 +133,12 @@ if aba == "coleção & histórico":
     if filtro_ano != "todos":
         df_filtrado = df_filtrado[df_filtrado['Released'] == filtro_ano]
 
-    st.caption(f"exibindo {len(df_filtrado)} discos encontrados com os filtros atuais.")
+    st.caption(f"exibindo {len(df_filtrado)} discos no acervo com os filtros aplicados.")
 
     cols = st.columns(4)
     for idx, row in enumerate(df_filtrado.head(24).iterrows()):
         i, r = row
         col_atual = cols[idx % 4]
-        
         with col_atual:
             st.markdown(f"""
                 <div class="vinyl-card">
@@ -168,7 +167,8 @@ if aba == "coleção & histórico":
             st.text(f"lista de origem: {row_sel['List']}")
             
             query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
-            st.markdown(f"🎧 [ouvir versão original no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
+            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
+            # Exibe o player embutido do Spotify com a capa do disco correspondente
             st.markdown(f"""
                 <iframe src="https://open.spotify.com/embed/search/{query_spotify}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
             """, unsafe_allow_html=True)
@@ -198,7 +198,6 @@ if aba == "coleção & histórico":
                 del st.session_state.album_editando
                 st.rerun()
 
-# --- ABA 2: ÁLBUM DO DIA / MANUAL ---
 elif aba == "álbum do dia":
     st.subheader("🎲 gerenciador diário & inserção manual")
     with st.form("form_manual"):
@@ -232,7 +231,6 @@ elif aba == "álbum do dia":
             df_atualizado.to_csv("albums.csv", index=False)
             st.success(f"'{m_album}' adicionado com sucesso!")
 
-# --- ABA 3: ESTATÍSTICAS ---
 elif aba == "estatísticas":
     st.subheader("📊 estatísticas da sua coleção")
     c_s1, c_s2, c_s3 = st.columns(3)
