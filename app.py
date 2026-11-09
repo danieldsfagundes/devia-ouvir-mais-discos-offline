@@ -137,19 +137,19 @@ if aba == "coleção & histórico" and st.session_state.popup_ativo:
         col_pop1, col_pop2 = st.columns([1, 2])
         
         with col_pop1:
-            # Nome limpo sem emoji
+            # Nome sem emoji de disco
             st.markdown(f"### {album_hoje['Album']}")
             st.text(f"artista: {album_hoje['Artist']}")
             st.text(f"lançamento: {album_hoje['Released']}")
             
-            # Exibe a capa do disco
+            # Exibe a capa
             capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
             if capa_url:
                 st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
             else:
                 st.info("💿 Capa indisponível no momento")
             
-            # Botão do Spotify bonito e com o texto correto
+            # Botão do Spotify
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
             st.markdown(f"""
                 <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
@@ -159,21 +159,18 @@ if aba == "coleção & histórico" and st.session_state.popup_ativo:
             
         with col_pop2:
             st.markdown("#### 🎯 registre sua audição")
+            st.markdown("nota da capa")
             
-            # Seleção por estrelas (1 a 5 estrelas)
-            estestrelas_opcoes = ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"]
-            capa_inicial_idx = int(album_hoje.get('Cover_Rating', 3)) - 1
-            if capa_inicial_idx < 0 or capa_inicial_idx > 4:
-                capa_inicial_idx = 2
+            # Avaliação interativa por estrelas estilo widget visual
+            # st.feedback retorna um índice de 0 a 4 (0 estrelas a 4 estrelas), então somamos +1 para 1 a 5.
+            atual_rating = int(album_hoje.get('Cover_Rating', 3)) - 1
+            if atual_rating < 0 or atual_rating > 4:
+                atual_rating = 2
                 
-            nota_estrela = st.select_slider(
-                "nota da capa",
-                options=estestrelas_opcoes,
-                value=estestrelas_opcoes[capa_inicial_idx],
-                key="pop_cov_stars"
-            )
-            # Converte as estrelas selecionadas em número (1 a 5)
-            cov_p = estestrelas_opcoes.index(nota_estrela) + 1
+            feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
+            
+            # Define o valor da capa com base na interação (se o usuário clicou, usa o feedback, senão usa o padrão)
+            cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
             
             tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
             lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
@@ -254,18 +251,12 @@ if aba == "coleção & histórico":
             """, unsafe_allow_html=True)
             
         with c_ed2:
-            estestrelas_opcoes = ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"]
-            capa_ed_idx = int(row_sel['Cover_Rating']) - 1
-            if capa_ed_idx < 0 or capa_ed_idx > 4:
-                capa_ed_idx = 2
-                
-            nota_ed_estrela = st.select_slider(
-                "nota da capa",
-                options=estestrelas_opcoes,
-                value=estestrelas_opcoes[capa_ed_idx],
-                key=f"c_ed_stars_{sel_idx}"
-            )
-            nova_capa = estestrelas_opcoes.index(nota_ed_estrela) + 1
+            st.markdown("nota da capa")
+            fb_ed = st.feedback("stars", key=f"c_ed_feedback_{sel_idx}")
+            atual_ed_rating = int(row_sel['Cover_Rating']) - 1
+            if atual_ed_rating < 0 or atual_ed_rating > 4:
+                atual_ed_rating = 2
+            nova_capa = (fb_ed + 1) if fb_ed is not None else (atual_ed_rating + 1)
             
             tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"t_ed_{sel_idx}")
             lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"l_ed_{sel_idx}")
@@ -328,8 +319,3 @@ elif aba == "estatísticas":
     c_s1, c_s2, c_s3 = st.columns(3)
     with c_s1:
         st.metric("total de discos catalogados", len(df_albums))
-    with c_s2:
-        media_aproveitamento = (df_albums['Liked_Tracks'] / df_albums['Total_Tracks']).mean() * 100
-        st.metric("aproveitamento médio de faixas", f"{media_aproveitamento:.1f}%")
-    with c_s3:
-        st.metric("média de nota das capas", f"{df_albums['Cover_Rating'].mean():.1f} / 5")
