@@ -388,7 +388,7 @@ elif st.session_state.filtro_aba == "histórico":
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     with col_f1:
         artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
-        filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis)
+        filtro_artista = st.selectbox("filtrar por artista", artistas_disponiveis)
     with col_f2:
         paises_disponiveis = ["todos"] + sorted(df_albums['Country'].dropna().astype(str).unique().tolist())
         filtro_pais = st.selectbox("filtrar por país", paises_disponiveis)
@@ -396,7 +396,7 @@ elif st.session_state.filtro_aba == "histórico":
         anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
         filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + [str(int(a)) for a in anos_disponiveis])
     with col_f4:
-        pesquisa_livre = st.text_input("pesquisa livre (disco ou artista)", placeholder="digite para buscar...")
+        pesquisa_livre = st.text_input("pesquisa (disco ou artista)", placeholder="digite para buscar...")
 
     df_filtrado = df_albums.copy()
     if filtro_artista != "todos":
@@ -541,7 +541,7 @@ elif st.session_state.filtro_aba == "estatísticas":
 elif st.session_state.filtro_aba == "inserir manualmente":
     st.subheader("➕ inserir novo disco manualmente")
     with st.form("form_manual"):
-        m_artista = st.text_input("artista / banda")
+        m_artista = st.text_input("artista")
         m_pais = st.text_input("país", value="Brasil")
         m_album = st.text_input("nome do álbum")
         m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
