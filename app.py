@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import urllib.parse
 import os
+import requests
 
 st.set_page_config(
     page_title="devia ouvir mais discos", 
@@ -34,13 +35,10 @@ st.markdown("""
         border: 1px solid #2a2a2a;
         margin-bottom: 20px;
     }
-    .spotify-box {
-        background-color: #181818;
-        border: 1px solid #282828;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        margin-top: 10px;
+    .album-cover {
+        border-radius: 10px;
+        box-shadow: 0px 8px 20px rgba(0,0,0,0.7);
+        max-width: 100%;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -51,7 +49,7 @@ st.caption("sua coleção digital inspirada em vinis • acervo unificado")
 @st.cache_data
 def load_data():
     if not os.path.exists("albums.csv"):
-        st.error("⚠️ O arquivo 'albums.csv' não foi encontrado no GitHub. Envie a versão atualizada para a raiz do repositório.")
+        st.error("⚠️ O arquivo 'albums.csv' não foi encontrado no GitHub.")
         return pd.DataFrame()
     
     df = pd.read_csv("albums.csv", on_bad_lines='skip')
@@ -73,6 +71,23 @@ def load_data():
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     return df
 
+# Função para buscar a capa oficial do álbum direto na API pública do iTunes
+@st.cache_data
+def buscar_capa_album(artist, album):
+    try:
+        termo = f"{artist} {album}"
+        url = f"https://itunes.apple.com/search?term={urllib.parse.quote(termo)}&entity=album&limit=1"
+        response = requests.get(url, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            if data['results']:
+                # Pega a imagem e aumenta a resolução para 600x600 pixels
+                artwork = data['results'][0]['artworkUrl100']
+                return artwork.replace('100x100b.jpg', '600x600bb.jpg').replace('100x100', '600x600')
+    except Exception:
+        pass
+    return None
+
 df_albums = load_data()
 
 if df_albums.empty:
@@ -85,7 +100,7 @@ if 'popup_ativo' not in st.session_state:
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio("navegar", ["coleção & histórico", "álbum do dia", "estatísticas"])
 
-# Pop-up do Álbum do Dia
+# Pop-up do Álbum do Dia com Capa na Tela
 if st.session_state.popup_ativo and aba == "coleção & histórico":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
@@ -97,15 +112,15 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
             st.text(f"artista: {album_hoje['Artist']}")
             st.text(f"lançamento: {album_hoje['Released']}")
             
-            query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
+            # Busca e exibe a capa direto no site
+            capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
+            if capa_url:
+                st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
+            else:
+                st.info("💿 Capa indisponível no momento")
             
-            # Caixa estilizada para ouvir no Spotify sem erro 404
-            st.markdown(f"""
-                <div class="spotify-box">
-                    <p style="color: #1db954; font-weight: bold; margin-bottom: 10px;">🟢 disponível no spotify</p>
-                    <a href="https://open.spotify.com/search/{query_sp}" target="_blank" style="background-color: #1db954; color: white; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; display: inline-block;">ouvir álbum completo</a>
-                </div>
-            """, unsafe_allow_html=True)
+            query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
+            st.markdown(f"🎧 [ouvir álbum completo no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
             
         with col_pop2:
             st.markdown("#### 🎯 registre sua audição")
@@ -175,13 +190,13 @@ if aba == "coleção & histórico":
             st.text(f"ano: {row_sel['Released']}")
             st.text(f"lista de origem: {row_sel['List']}")
             
+            # Exibe a capa oficial do álbum detalhado direto no seu site
+            capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
+            if capa_detalhe:
+                st.image(capa_detalhe, caption=row_sel['Album'], width=300)
+            
             query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
-            st.markdown(f"""
-                <div class="spotify-box" style="margin-top: 20px;">
-                    <p style="color: #1db954; font-weight: bold; margin-bottom: 10px;">🟢 integração spotify</p>
-                    <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" style="background-color: #1db954; color: white; padding: 12px 24px; border-radius: 20px; text-decoration: none; font-weight: bold; display: inline-block;">abrir este álbum no Spotify</a>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
             
         with c_ed2:
             nova_capa = st.slider("nota da capa (1 a 5)", 1, 5, int(row_sel['Cover_Rating']), key=f"c_ed_{sel_idx}")
