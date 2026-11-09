@@ -113,7 +113,8 @@ def carregar_dados_frescos():
     
     colunas_obrigatorias = {
         'Cover_Rating': '3',
-        'Liked_Tracks': '4',
+        'Total_Tracks': '10',
+        'Liked_Tracks': '8',
         'Favorite_Track': '',
         'My_Review': '',
         'Country': 'Brasil',
@@ -128,13 +129,16 @@ def carregar_dados_frescos():
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     
     df['Cover_Rating'] = pd.to_numeric(df['Cover_Rating'], errors='coerce').fillna(3).astype(int)
-    df['Liked_Tracks'] = pd.to_numeric(df['Liked_Tracks'], errors='coerce').fillna(4).astype(int)
+    df['Total_Tracks'] = pd.to_numeric(df['Total_Tracks'], errors='coerce').fillna(10).astype(int)
+    df['Liked_Tracks'] = pd.to_numeric(df['Liked_Tracks'], errors='coerce').fillna(8).astype(int)
     df['Released'] = pd.to_numeric(df['Released'], errors='coerce').fillna(1975).astype(int)
     df['Colecao'] = df['Colecao'].fillna('Não').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
-    df['Nota_Calculada'] = (df['Liked_Tracks'] * 0.70) + (df['Cover_Rating'] * 0.30)
+    # Cálculo da nota: 70% proporção de músicas curtidas + 30% nota da capa
+    prop = df['Liked_Tracks'] / df['Total_Tracks'].replace(0, 1)
+    df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
     
     return df
 
@@ -214,7 +218,7 @@ if aba == "álbum do dia":
         st.markdown("#### 🎵 registre sua audição")
         st.markdown("nota da capa (1 a 5)")
         
-        val_c = row_val = album_hoje.get('Cover_Rating', 3)
+        val_c = album_hoje.get('Cover_Rating', 3)
         try:
             cur_c = int(float(val_c)) - 1
         except:
@@ -224,16 +228,8 @@ if aba == "álbum do dia":
         feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
         cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (cur_c + 1)
         
-        st.markdown("nota das músicas (1 a 5)")
-        val_l = album_hoje.get('Liked_Tracks', 4)
-        try:
-            cur_l = int(float(val_l)) - 1
-        except:
-            cur_l = 3
-        cur_l = max(0, min(4, cur_l))
-        
-        feedback_lik = st.feedback("stars", key="pop_lik_feedback")
-        lik_p = (feedback_lik + 1) if feedback_lik is not None else (cur_l + 1)
+        tot_p = st.number_input("total de músicas", 1, 30, int(float(album_hoje.get('Total_Tracks', 10))), key="pop_tot")
+        lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_hoje.get('Liked_Tracks', 8))), key="pop_lik")
         
         if st.button("salvar audição do dia", type="primary"):
             st.success("audição registrada com sucesso!")
@@ -270,7 +266,7 @@ elif aba == "minha coleção":
                                 <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                                 <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                                 <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/5</span>
+                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/{int(float(r['Total_Tracks']))}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -312,18 +308,22 @@ elif aba == "minha coleção":
                                 fb_ed = st.feedback("stars", key=f"col_c_{flat_idx}")
                                 nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                                 
-                                st.markdown("nota das músicas (1 a 5)")
                                 try:
-                                    cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                                    tot_val = int(float(row_sel.get('Total_Tracks', 10)))
                                 except:
-                                    cur_l = 3
-                                cur_l = max(0, min(4, cur_l))
-                                fb_l = st.feedback("stars", key=f"col_l_{flat_idx}")
-                                novo_lik = (fb_l + 1) if fb_l is not None else (cur_l + 1)
+                                    tot_val = 10
+                                tot_f = st.number_input("total de músicas", 1, 30, tot_val, key=f"col_tot_{flat_idx}")
+                                
+                                try:
+                                    lik_val = int(float(row_sel.get('Liked_Tracks', 8)))
+                                except:
+                                    lik_val = 8
+                                lik_f = st.number_input("músicas que gostou", 0, tot_f, lik_val, key=f"col_lik_{flat_idx}")
                                 
                                 fav_val = str(row_sel.get('Favorite_Track', ''))
                                 if fav_val.lower() == 'nan': fav_val = ''
                                 fav_m = st.text_input("música favorita", value=fav_val, key=f"col_f_{flat_idx}")
+                                
                                 colecao_atual = str(row_sel.get('Colecao', 'Não')).strip().capitalize()
                                 idx_col = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
                                 nova_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col, key=f"col_s_{flat_idx}")
@@ -334,7 +334,8 @@ elif aba == "minha coleção":
                                     if len(m_idx) > 0:
                                         idx_s = m_idx[0]
                                         df_all.loc[idx_s, 'Cover_Rating'] = str(int(nova_capa))
-                                        df_all.loc[idx_s, 'Liked_Tracks'] = str(int(novo_lik))
+                                        df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_f))
+                                        df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_f))
                                         df_all.loc[idx_s, 'Favorite_Track'] = str(fav_m)
                                         df_all.loc[idx_s, 'Colecao'] = str(nova_colecao)
                                         df_all.to_csv("albums.csv", index=False)
@@ -395,7 +396,7 @@ elif aba == "histórico":
                             <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                             <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                             <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/5</span>
+                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/{int(float(r['Total_Tracks']))}</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
@@ -437,14 +438,17 @@ elif aba == "histórico":
                             fb_ed = st.feedback("stars", key=f"hist_c_{flat_idx}")
                             nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                             
-                            st.markdown("nota das músicas (1 a 5)")
                             try:
-                                cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                                tot_val = int(float(row_sel.get('Total_Tracks', 10)))
                             except:
-                                cur_l = 3
-                            cur_l = max(0, min(4, cur_l))
-                            fb_l = st.feedback("stars", key=f"hist_l_{flat_idx}")
-                            novo_lik = (fb_l + 1) if fb_l is not None else (cur_l + 1)
+                                tot_val = 10
+                            tot_f = st.number_input("total de músicas", 1, 30, tot_val, key=f"hist_tot_{flat_idx}")
+                            
+                            try:
+                                lik_val = int(float(row_sel.get('Liked_Tracks', 8)))
+                            except:
+                                lik_val = 8
+                            lik_f = st.number_input("músicas que gostou", 0, tot_f, lik_val, key=f"hist_lik_{flat_idx}")
                             
                             fav_val = str(row_sel.get('Favorite_Track', ''))
                             if fav_val.lower() == 'nan': fav_val = ''
@@ -460,7 +464,8 @@ elif aba == "histórico":
                                 if len(m_idx) > 0:
                                     idx_s = m_idx[0]
                                     df_all.loc[idx_s, 'Cover_Rating'] = str(int(nova_capa))
-                                    df_all.loc[idx_s, 'Liked_Tracks'] = str(int(novo_lik))
+                                    df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_f))
+                                    df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_f))
                                     df_all.loc[idx_s, 'Favorite_Track'] = str(fav_m)
                                     df_all.loc[idx_s, 'Colecao'] = str(nova_colecao)
                                     df_all.to_csv("albums.csv", index=False)
@@ -482,8 +487,8 @@ elif aba == "estatísticas":
     with c_s1:
         st.metric("total de discos catalogados", len(df_albums))
     with c_s2:
-        media_aproveitamento = (df_albums['Liked_Tracks'].astype(float) / 5.0).mean() * 100
-        st.metric("aproveitamento médio", f"{media_aproveitamento:.1f}%")
+        media_aproveitamento = (df_albums['Liked_Tracks'].astype(float) / df_albums['Total_Tracks'].astype(float).replace(0, 1)).mean() * 100
+        st.metric("aproveitamento médio de faixas", f"{media_aproveitamento:.1f}%")
     with c_s3:
         st.metric("média de nota das capas", f"{df_albums['Cover_Rating'].astype(float).mean():.1f} / 5")
 
@@ -502,11 +507,12 @@ elif aba == "inserir manualmente":
         fb_man = st.feedback("stars", key="manual_stars")
         m_capa = (fb_man + 1) if fb_man is not None else 3
         
-        st.markdown("nota das músicas (1 a 5)")
-        fb_man_lik = st.feedback("stars", key="manual_stars_lik")
-        m_lik = (fb_man_lik + 1) if fb_man_lik is not None else 4
-        
-        m_fav = st.text_input("música favorita")
+        c_m1, c_m2 = st.columns(2)
+        with c_m1:
+            m_tot = st.number_input("total de músicas", 1, 30, 10)
+        with c_m2:
+            m_lik = st.number_input("músicas que gostou", 0, m_tot, 8)
+            m_fav = st.text_input("música favorita")
             
         if st.form_submit_button("adicionar à coleção"):
             df_all = pd.read_csv("albums.csv", dtype=str)
@@ -518,6 +524,7 @@ elif aba == "inserir manualmente":
                 'Spotify_Link': str(m_spotify),
                 'Colecao': str(m_colecao),
                 'Cover_Rating': str(int(m_capa)),
+                'Total_Tracks': str(int(m_tot)),
                 'Liked_Tracks': str(int(m_lik)),
                 'Favorite_Track': str(m_fav),
                 'My_Review': ''
