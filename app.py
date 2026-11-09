@@ -136,11 +136,14 @@ def buscar_capa_album(artist, album):
     return None
 
 def obter_link_spotify(row):
-    link_custom = row.get('Spotify_Link', '')
-    # Se houver um link válido com 'http', usa ele. Caso contrário, gera a busca direcionada.
-    if isinstance(link_custom, str) and link_custom.strip().startswith('http'):
-        return link_custom.strip()
-    query_sp = urllib.parse.quote(f"{row['Artist']} {row['Album']}")
+    link_custom = str(row.get('Spotify_Link', '')).strip()
+    
+    # Se o link começar com http (link real de álbum), usa ele diretamente
+    if link_custom.startswith('http'):
+        return link_custom
+    
+    # Caso contrário (se for a palavra 'Spotify' ou vazio), fazemos uma busca direta otimizada para álbum no Spotify
+    query_sp = urllib.parse.quote(f"album:{row['Album']} artist:{row['Artist']}")
     return f"https://open.spotify.com/search/{query_sp}"
 
 df_albums = load_data()
@@ -148,7 +151,7 @@ df_albums = load_data()
 if df_albums.empty:
     st.stop()
 
-# MENU LATERAL (Atualizado para "álbum do dia")
+# MENU LATERAL
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio(
     "navegar", 
