@@ -58,27 +58,16 @@ st.markdown("""
         margin-right: 8px;
         font-size: 16px;
     }
-    .flag-img {
-        width: 20px;
-        height: 15px;
-        vertical-align: middle;
-        margin-right: 5px;
-        border-radius: 2px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
 st.caption("Ouvindo, explorando e avaliando discos em toda a sua arte.")
 
-# Mapeamento do código ISO de cada país para carregar a bandeira gráfica perfeita
 def obter_html_bandeira(pais):
     if not isinstance(pais, str):
         return pais
-    
     p = pais.strip().title()
-    
-    # Mapeia o nome do país para o código ISO de 2 letras da bandeira
     codigos_iso = {
         "Brasil": "br",
         "Estados Unidos": "us",
@@ -95,11 +84,9 @@ def obter_html_bandeira(pais):
         "Portugal": "pt",
         "Japão": "jp"
     }
-    
-    iso = codigos_iso.get(p, "br") # Padrão 'br' se não encontrar
+    iso = codigos_iso.get(p, "br")
     url_bandeira = f"https://flagcdn.com/24x18/{iso}.png"
-    
-    return f'<img src="{url_bandeira}" class="flag-img" alt="{pais}"> {pais}'
+    return f'<img src="{url_bandeira}" style="width: 20px; height: 15px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}"> {pais}'
 
 @st.cache_data
 def load_data():
@@ -177,7 +164,6 @@ if aba == "disco do dia":
         st.markdown(f"### {album_hoje['Album']}")
         st.markdown(f"**Artista:** {album_hoje['Artist']}")
         
-        # País com bandeira gráfica via HTML
         pais_nome = str(album_hoje.get('Origin', 'Brasil')).strip()
         html_bandeira = obter_html_bandeira(pais_nome)
         st.markdown(f"**País:** {html_bandeira}", unsafe_allow_html=True)
@@ -209,7 +195,9 @@ if aba == "disco do dia":
         cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
         
         tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
-        lik_p = st.number_input("faixas que gostou (escala de 1 a 5 proporcional)", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
+        
+        # Frase indesejada removida aqui:
+        lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
         
         if st.button("salvar audição do dia", type="primary"):
             st.success("audição registrada com sucesso!")
