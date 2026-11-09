@@ -64,51 +64,46 @@ st.markdown("""
 st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
 st.caption("Ouvindo, explorando e avaliando discos em toda a sua arte.")
 
-# Dicionário robusto de códigos ISO de países para exibir a bandeira correta via flagcdn
+# Dicionário robusto de códigos ISO estruturado em múltiplas linhas
+MAPA_ISO = {
+    "Brasil": "br", "Brazil": "br",
+    "Estados Unidos": "us", "Eua": "us", "United States": "us",
+    "Reino Unido": "gb", "Inglaterra": "gb", "United Kingdom": "gb",
+    "França": "fr", "France": "fr",
+    "Argentina": "ar",
+    "Cuba": "cu",
+    "México": "mx", "Mexico": "mx",
+    "Chile": "cl",
+    "Colômbia": "co", "Colombia": "co",
+    "Panamá": "pa", "Panama": "pa",
+    "Puerto Rico": "pr",
+    "República Dominicana": "do",
+    "Perú": "pe", "Peru": "pe",
+    "Costa Rica": "cr",
+    "Venezuela": "ve",
+    "Bolívia": "bo", "Bolivia": "bo",
+    "Uruguay": "uy", "Uruguai": "uy",
+    "Guatemala": "gt",
+    "El Salvador": "sv",
+    "Paraguay": "py", "Paraguai": "py",
+    "Ecuador": "ec", "Equador": "ec",
+    "Nicaragua": "ni", "Nicarágua": "ni",
+    "Honduras": "hn",
+    "España": "es", "Espanha": "es", "Spain": "es",
+    "Itália": "it", "Italia": "it", "Italy": "it",
+    "Portugal": "pt",
+    "Japão": "jp", "Japan": "jp",
+    "Jamaica": "jm",
+    "Canadá": "ca", "Canada": "ca",
+    "Alemanha": "de", "Germany": "de"
+}
+
 def obter_html_bandeira(pais):
     if not isinstance(pais, str):
         return str(pais)
-    
     p_limpo = pais.strip().title()
-    
-    # Mapeamento expandido de países para códigos ISO de 2 letras
-    mapa_iso = {
-        "Brasil": "br", "Brazil": "br",
-        "Estados Unidos": "us", "Eua": "us", "United States": "us",
-        "Reino Unido": "gb", "Inglaterra": "gb", "United Kingdom": "gb",
-        "França": "fr", "France": "fr",
-        "Argentina": "ar",
-        "Cuba": "cu",
-        "México": "mx", "Mexico": "mx",
-        "Chile": "cl",
-        "Colômbia": "co", "Colombia": "co",
-        "Panamá": "pa", "Panama": "pa",
-        "Puerto Rico": "pr",
-        "República Dominicana": "do",
-        "Perú": "pe", "Peru": "pe",
-        "Costa Rica": "cr",
-        "Venezuela": "ve",
-        "Bolívia": "bo", "Bolivia": "bo",
-        "Uruguay": "uy", "Uruguai": "uy",
-        "Guatemala": "gt",
-        "El Salvador": "sv",
-        "Paraguay": "py", "Paraguai": "py",
-        "Ecuador": "ec", "Equador": "ec",
-        "Nicaragua": "ni", "Nicarágua": "ni",
-        "Honduras": "hn",
-        "España": "es", "Espanha": "es", "Spain": "es",
-        "Itália": "it", "Italia": "it", "Italy": "it",
-        "Portugal": "pt",
-        "Japão": "jp", "Japan": "jp",
-        "Jamaica": "jm",
-        "Canadá": "ca", "Canada": "ca",
-        "Alemanha": "de", "Germany": "de"
-    }
-    
-    # Pega o primeiro país caso haja múltiplos (ex: "Estados Unidos, Panamá" -> "Estados Unidos")
     primeiro_pais = p_limpo.split(',')[0].strip()
-    iso = mapa_iso.get(primeiro_pais, "un") # 'un' (ONU) como fallback neutro se não encontrar
-    
+    iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/24x18/{iso}.png"
     return f'<img src="{url_bandeira}" style="width: 20px; height: 15px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}"> {pais}'
 
@@ -173,7 +168,7 @@ df_albums = load_data()
 if df_albums.empty:
     st.stop()
 
-# MENU LATERAL REORGANIZADO
+# MENU LATERAL
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio(
     "navegar", 
@@ -227,32 +222,4 @@ if aba == "álbum do dia":
             atual_rating = 2
             
         feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
-        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
-        
-        tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
-        lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
-        
-        if st.button("salvar audição do dia", type="primary"):
-            st.success("audição registrada com sucesso!")
-            st.rerun()
-
-# 2. ABA: COLEÇÃO (Exibe apenas os discos marcados como Sim)
-elif aba == "coleção":
-    st.markdown("### 💽 sua coleção de vinis")
-    
-    df_colecao = df_albums[df_albums['Colecao'].str.strip().str.lower().isin(['sim', 's', 'yes', 'true', '1'])].copy()
-    df_colecao = df_colecao.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
-    
-    st.caption(f"exibindo {len(df_colecao)} discos cadastrados na sua coleção.")
-    
-    if df_colecao.empty:
-        st.info("💡 Nenhum disco marcado como 'Sim' na coleção ainda. Edite os álbuns no Histórico para adicioná-los!")
-    else:
-        cols = st.columns(4)
-        for idx, row in enumerate(df_colecao.head(24).iterrows()):
-            i, r = row
-            col_atual = cols[idx % 4]
-            with col_atual:
-                pais_card = str(r.get('Country', 'Brasil')).strip()
-                p_primario = pais_card.split(',')[0].strip().title()
-                mapa_iso = {"Brasil": "br", "Estados Unidos": "us", "Reino Unido": "gb", "França": "fr", "Argentina": "ar", "Cuba": "cu", "México": "mx", "Chile": "cl", "Colômbia
+        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual
