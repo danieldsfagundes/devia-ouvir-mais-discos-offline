@@ -104,7 +104,6 @@ def obter_html_bandeira(pais):
     primeiro_pais = p_limpo.split(',')[0].strip()
     iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/16x12/{iso}.png"
-    # Espaçamento reduzido para 2px para ficar bem próximo do nome do país
     return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 2px; border-radius: 2px;" alt="{pais}">'
 
 def render_estrelas(num):
@@ -386,7 +385,7 @@ elif st.session_state.filtro_aba == "minha coleção":
 elif st.session_state.filtro_aba == "histórico":
     st.markdown("### 📚 histórico")
     
-    col_f1, col_f2, col_f3 = st.columns(3)
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     with col_f1:
         artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
         filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis)
@@ -396,6 +395,8 @@ elif st.session_state.filtro_aba == "histórico":
     with col_f3:
         anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
         filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + [str(int(a)) for a in anos_disponiveis])
+    with col_f4:
+        pesquisa_livre = st.text_input("pesquisa livre (disco ou artista)", placeholder="digite para buscar...")
 
     df_filtrado = df_albums.copy()
     if filtro_artista != "todos":
@@ -404,6 +405,12 @@ elif st.session_state.filtro_aba == "histórico":
         df_filtrado = df_filtrado[df_filtrado['Country'] == filtro_pais]
     if filtro_ano != "todos":
         df_filtrado = df_filtrado[df_filtrado['Released'].astype(int).astype(str) == filtro_ano]
+    
+    if pesquisa_livre:
+        termo = pesquisa_livre.strip().lower()
+        mask = df_filtrado['Album'].astype(str).str.lower().str.contains(termo, na=False) | \
+               df_filtrado['Artist'].astype(str).str.lower().str.contains(termo, na=False)
+        df_filtrado = df_filtrado[mask]
 
     df_filtrado = df_filtrado.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
 
