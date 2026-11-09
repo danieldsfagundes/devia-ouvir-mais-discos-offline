@@ -58,30 +58,6 @@ st.markdown("""
         margin-right: 8px;
         font-size: 16px;
     }
-    /* Estilo limpo para os botões interativos de texto */
-    div.stButton > button:first-child {
-        background-color: transparent !important;
-        color: #a0a0a0 !important;
-        border: none !important;
-        border-radius: 0px !important;
-        padding: 0 !important;
-        min-height: unset !important;
-        height: auto !important;
-        font-size: 14px !important;
-        font-weight: normal !important;
-        text-align: left !important;
-        box-shadow: none !important;
-        outline: none !important;
-        display: inline !important;
-        width: auto !important;
-        margin: 0 !important;
-    }
-    div.stButton > button:first-child:hover {
-        color: #1db954 !important;
-        background-color: transparent !important;
-        border: none !important;
-        text-decoration: underline;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -128,7 +104,7 @@ def obter_html_bandeira(pais):
     primeiro_pais = p_limpo.split(',')[0].strip()
     iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/16x12/{iso}.png"
-    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 4px; border-radius: 2px;" alt="{pais}">'
+    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 6px; border-radius: 2px;" alt="{pais}">'
 
 def render_estrelas(num):
     try:
@@ -310,35 +286,16 @@ elif st.session_state.filtro_aba == "minha coleção":
                         n_val = float(r['Nota_Calculada'])
                         str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                         
-                        st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
-                        st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
+                        html_bandeira = obter_html_bandeira(pais_card)
                         
-                        if st.button(f"{r['Artist']}", key=f"col_art_{flat_idx}"):
-                            st.session_state.filtro_artista_val = str(r['Artist'])
-                            st.session_state.filtro_pais_val = "todos"
-                            st.session_state.filtro_ano_val = "todos"
-                            st.session_state.filtro_aba = "histórico"
-                            st.rerun()
-                            
-                        html_b = obter_html_bandeira(pais_card)
-                        st.markdown(f"País: {html_b}", unsafe_allow_html=True)
-                        if st.button(f"{pais_card}", key=f"col_pai_{flat_idx}"):
-                            st.session_state.filtro_artista_val = "todos"
-                            st.session_state.filtro_pais_val = str(pais_card)
-                            st.session_state.filtro_ano_val = "todos"
-                            st.session_state.filtro_aba = "histórico"
-                            st.rerun()
-                            
-                        if st.button(f"📅 {ano_val}", key=f"col_ano_{flat_idx}"):
-                            st.session_state.filtro_artista_val = "todos"
-                            st.session_state.filtro_pais_val = "todos"
-                            st.session_state.filtro_ano_val = str(ano_val)
-                            st.session_state.filtro_aba = "histórico"
-                            st.rerun()
-                                
                         st.markdown(f"""
-                            <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
+                            <div class="vinyl-card">
+                                <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
+                                <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br><br>
+                                <span style="color: #ccc; font-size: 13px;">{html_bandeira} {pais_card}</span><br>
+                                <span style="color: #ccc; font-size: 13px;">📅 {ano_val}</span>
+                                <hr style="border: 0.5px solid #333; margin: 10px 0;">
+                                <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -428,37 +385,16 @@ elif st.session_state.filtro_aba == "minha coleção":
 elif st.session_state.filtro_aba == "histórico":
     st.markdown("### 📚 histórico")
     
-    artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
-    paises_disponiveis = ["todos"] + sorted(df_albums['Country'].dropna().astype(str).unique().tolist())
-    anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
-    anos_str_disponiveis = ["todos"] + [str(int(a)) for a in anos_disponiveis]
-
-    try:
-        idx_art = artistas_disponiveis.index(st.session_state.filtro_artista_val)
-    except:
-        idx_art = 0
-
-    try:
-        idx_pais = paises_disponiveis.index(st.session_state.filtro_pais_val)
-    except:
-        idx_pais = 0
-
-    try:
-        idx_ano = anos_str_disponiveis.index(st.session_state.filtro_ano_val)
-    except:
-        idx_ano = 0
-
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
-        filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis, index=idx_art, key="sel_artista_hist")
+        artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
+        filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis)
     with col_f2:
-        filtro_pais = st.selectbox("filtrar por país", paises_disponiveis, index=idx_pais, key="sel_pais_hist")
+        paises_disponiveis = ["todos"] + sorted(df_albums['Country'].dropna().astype(str).unique().tolist())
+        filtro_pais = st.selectbox("filtrar por país", paises_disponiveis)
     with col_f3:
-        filtro_ano = st.selectbox("filtrar por ano de lançamento", anos_str_disponiveis, index=idx_ano, key="sel_ano_hist")
-
-    st.session_state.filtro_artista_val = filtro_artista
-    st.session_state.filtro_pais_val = filtro_pais
-    st.session_state.filtro_ano_val = filtro_ano
+        anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
+        filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + [str(int(a)) for a in anos_disponiveis])
 
     df_filtrado = df_albums.copy()
     if filtro_artista != "todos":
@@ -486,32 +422,16 @@ elif st.session_state.filtro_aba == "histórico":
                     n_val = float(r['Nota_Calculada'])
                     str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                     
-                    st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
-                    st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
+                    html_bandeira = obter_html_bandeira(pais_card)
                     
-                    if st.button(f"{r['Artist']}", key=f"hist_art_{flat_idx}"):
-                        st.session_state.filtro_artista_val = str(r['Artist'])
-                        st.session_state.filtro_pais_val = "todos"
-                        st.session_state.filtro_ano_val = "todos"
-                        st.rerun()
-                        
-                    html_b = obter_html_bandeira(pais_card)
-                    st.markdown(f"{html_b}", unsafe_allow_html=True)
-                    if st.button(f"{pais_card}", key=f"hist_pai_{flat_idx}"):
-                        st.session_state.filtro_artista_val = "todos"
-                        st.session_state.filtro_pais_val = str(pais_card)
-                        st.session_state.filtro_ano_val = "todos"
-                        st.rerun()
-                            
-                    if st.button(f"📅 {ano_val}", key=f"hist_ano_{flat_idx}"):
-                        st.session_state.filtro_artista_val = "todos"
-                        st.session_state.filtro_pais_val = "todos"
-                        st.session_state.filtro_ano_val = str(ano_val)
-                        st.rerun()
-                            
                     st.markdown(f"""
-                        <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                        <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
+                        <div class="vinyl-card">
+                            <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
+                            <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br><br>
+                            <span style="color: #ccc; font-size: 13px;">{html_bandeira} {pais_card}</span><br>
+                            <span style="color: #ccc; font-size: 13px;">📅 {ano_val}</span>
+                            <hr style="border: 0.5px solid #333; margin: 10px 0;">
+                            <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
