@@ -106,15 +106,25 @@ def obter_html_bandeira(pais):
     url_bandeira = f"https://flagcdn.com/24x18/{iso}.png"
     return f'<img src="{url_bandeira}" style="width: 20px; height: 15px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}"> {pais}'
 
+def render_estrelas(num):
+    try:
+        n = int(float(num))
+    except:
+        n = 0
+    n = max(0, min(5, n))
+    if n == 0:
+        return "⚪ Não avaliado"
+    return "⭐" * n + "☆" * (5 - n)
+
 def carregar_dados_frescos():
     if not os.path.exists("albums.csv"):
         return pd.DataFrame()
     df = pd.read_csv("albums.csv", on_bad_lines='skip', dtype=str)
     
     colunas_obrigatorias = {
-        'Cover_Rating': '3',
+        'Cover_Rating': '0',
         'Total_Tracks': '10',
-        'Liked_Tracks': '8',
+        'Liked_Tracks': '0',
         'Favorite_Track': '',
         'My_Review': '',
         'Country': 'Brasil',
@@ -128,14 +138,15 @@ def carregar_dados_frescos():
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     
-    df['Cover_Rating'] = pd.to_numeric(df['Cover_Rating'], errors='coerce').fillna(3).astype(int)
+    df['Cover_Rating'] = pd.to_numeric(df['Cover_Rating'], errors='coerce').fillna(0).astype(int)
     df['Total_Tracks'] = pd.to_numeric(df['Total_Tracks'], errors='coerce').fillna(10).astype(int)
-    df['Liked_Tracks'] = pd.to_numeric(df['Liked_Tracks'], errors='coerce').fillna(8).astype(int)
+    df['Liked_Tracks'] = pd.to_numeric(df['Liked_Tracks'], errors='coerce').fillna(0).astype(int)
     df['Released'] = pd.to_numeric(df['Released'], errors='coerce').fillna(1975).astype(int)
     df['Colecao'] = df['Colecao'].fillna('Não').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
+    # Se Cover_Rating for 0, considerarmos nota calculada 0 (não avaliado)
     prop = df['Liked_Tracks'] / df['Total_Tracks'].replace(0, 1)
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
     
@@ -215,22 +226,23 @@ if aba == "álbum do dia":
         
     with col_pop2:
         st.markdown("#### 🎵 registre sua audição")
-        st.markdown("nota da capa (1 a 5)")
-        
-        val_c = album_hoje.get('Cover_Rating', 3)
-        try:
-            cur_c = int(float(val_c)) - 1
-        except:
-            cur_c = 2
-        cur_c = max(0, min(4, cur_c))
-        
+        st.markdown(f"**Nota atual da capa:** {render_estrelas(album_hoje.get('Cover_Rating', 0))}")
+        st.markdown("alterar nota da capa (1 a 5)")
         feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
-        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (cur_c + 1)
         
         tot_p = st.number_input("total de músicas", 1, 30, int(float(album_hoje.get('Total_Tracks', 10))), key="pop_tot")
-        lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_hoje.get('Liked_Tracks', 8))), key="pop_lik")
+        lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_hoje.get('Liked_Tracks', 0))), key="pop_lik")
         
         if st.button("salvar audição do dia", type="primary"):
+            df_all = pd.read_csv("albums.csv", dtype=str)
+            m_idx = df_all[(df_all['Album'] == str(album_hoje['Album'])) & (df_all['Artist'] == str(album_hoje['Artist']))].index
+            if len(m_idx) > 0:
+                idx_s = m_idx[0]
+                if feedback_estrelas is not None:
+                    df_all.loc[idx_s, 'Cover_Rating'] = str(int(feedback_estrelas + 1))
+                df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_p))
+                df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_p))
+                df_all.to_csv("albums.csv", index=False)
             st.success("audição registrada com sucesso!")
             st.rerun()
 
@@ -258,6 +270,10 @@ elif aba == "minha coleção":
                         p_primario = pais_card.split(',')[0].strip().title()
                         iso_card = MAPA_ISO.get(p_primario, "un")
                         ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
+                        c_val = int(float(r['Cover_Rating']))
+                        n_val = float(r['Nota_Calculada'])
+                        str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
+                        
                         st.markdown(f"""
                             <div class="vinyl-card">
                                 <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
@@ -265,12 +281,16 @@ elif aba == "minha coleção":
                                 <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                                 <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
                                 <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | ⭐ Nota Final: {r['Nota_Calculada']:.1f}/5</span>
+                                <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
                         if st.button("editar / ver detalhes", key=f"btn_col_{flat_idx}"):
-                            st.session_state.album_editando = r['Album']
+                            if st.session_state.get('album_editando') == r['Album']:
+                                del st.session_state.album_editando
+                            else:
+                                st.session_state.album_editando = r['Album']
+                            st.rerun()
 
             for col_idx in range(4):
                 flat_idx = row_idx + col_idx
@@ -298,14 +318,10 @@ elif aba == "minha coleção":
                                 url_sp = obter_link_spotify(row_sel)
                                 st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                             with c_ed2:
-                                st.markdown("nota da capa (1 a 5)")
-                                try:
-                                    cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
-                                except:
-                                    cur_c = 2
-                                cur_c = max(0, min(4, cur_c))
+                                c_salva = int(float(row_sel.get('Cover_Rating', 0)))
+                                st.markdown(f"**Nota atual da capa:** {render_estrelas(c_salva)}")
+                                st.markdown("alterar nota da capa (1 a 5)")
                                 fb_ed = st.feedback("stars", key=f"col_c_{flat_idx}")
-                                nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                                 
                                 try:
                                     tot_val = int(float(row_sel.get('Total_Tracks', 10)))
@@ -314,9 +330,9 @@ elif aba == "minha coleção":
                                 tot_f = st.number_input("total de músicas", 1, 30, tot_val, key=f"col_tot_{flat_idx}")
                                 
                                 try:
-                                    lik_val = int(float(row_sel.get('Liked_Tracks', 8)))
+                                    lik_val = int(float(row_sel.get('Liked_Tracks', 0)))
                                 except:
-                                    lik_val = 8
+                                    lik_val = 0
                                 lik_f = st.number_input("músicas que gostou", 0, tot_f, lik_val, key=f"col_lik_{flat_idx}")
                                 
                                 fav_val = str(row_sel.get('Favorite_Track', ''))
@@ -332,7 +348,8 @@ elif aba == "minha coleção":
                                     m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
                                     if len(m_idx) > 0:
                                         idx_s = m_idx[0]
-                                        df_all.loc[idx_s, 'Cover_Rating'] = str(int(nova_capa))
+                                        if fb_ed is not None:
+                                            df_all.loc[idx_s, 'Cover_Rating'] = str(int(fb_ed + 1))
                                         df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_f))
                                         df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_f))
                                         df_all.loc[idx_s, 'Favorite_Track'] = str(fav_m)
@@ -388,6 +405,10 @@ elif aba == "histórico":
                     p_primario = pais_card.split(',')[0].strip().title()
                     iso_card = MAPA_ISO.get(p_primario, "un")
                     ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
+                    c_val = int(float(r['Cover_Rating']))
+                    n_val = float(r['Nota_Calculada'])
+                    str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
+                    
                     st.markdown(f"""
                         <div class="vinyl-card">
                             <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
@@ -395,12 +416,16 @@ elif aba == "histórico":
                             <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                             <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
                             <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | ⭐ Nota Final: {r['Nota_Calculada']:.1f}/5</span>
+                            <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
                     if st.button("editar / ver detalhes", key=f"btn_hist_{flat_idx}"):
-                        st.session_state.album_editando = r['Album']
+                        if st.session_state.get('album_editando') == r['Album']:
+                            del st.session_state.album_editando
+                        else:
+                            st.session_state.album_editando = r['Album']
+                        st.rerun()
 
         for col_idx in range(4):
             flat_idx = row_idx + col_idx
@@ -428,14 +453,10 @@ elif aba == "histórico":
                             url_sp = obter_link_spotify(row_sel)
                             st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                         with c_ed2:
-                            st.markdown("nota da capa (1 a 5)")
-                            try:
-                                cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
-                            except:
-                                cur_c = 2
-                            cur_c = max(0, min(4, cur_c))
+                            c_salva = int(float(row_sel.get('Cover_Rating', 0)))
+                            st.markdown(f"**Nota atual da capa:** {render_estrelas(c_salva)}")
+                            st.markdown("alterar nota da capa (1 a 5)")
                             fb_ed = st.feedback("stars", key=f"hist_c_{flat_idx}")
-                            nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                             
                             try:
                                 tot_val = int(float(row_sel.get('Total_Tracks', 10)))
@@ -444,9 +465,9 @@ elif aba == "histórico":
                             tot_f = st.number_input("total de músicas", 1, 30, tot_val, key=f"hist_tot_{flat_idx}")
                             
                             try:
-                                lik_val = int(float(row_sel.get('Liked_Tracks', 8)))
+                                lik_val = int(float(row_sel.get('Liked_Tracks', 0)))
                             except:
-                                lik_val = 8
+                                lik_val = 0
                             lik_f = st.number_input("músicas que gostou", 0, tot_f, lik_val, key=f"hist_lik_{flat_idx}")
                             
                             fav_val = str(row_sel.get('Favorite_Track', ''))
@@ -462,7 +483,8 @@ elif aba == "histórico":
                                 m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
                                 if len(m_idx) > 0:
                                     idx_s = m_idx[0]
-                                    df_all.loc[idx_s, 'Cover_Rating'] = str(int(nova_capa))
+                                    if fb_ed is not None:
+                                        df_all.loc[idx_s, 'Cover_Rating'] = str(int(fb_ed + 1))
                                     df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_f))
                                     df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_f))
                                     df_all.loc[idx_s, 'Favorite_Track'] = str(fav_m)
@@ -504,13 +526,13 @@ elif aba == "inserir manualmente":
         
         st.markdown("nota da capa (1 a 5)")
         fb_man = st.feedback("stars", key="manual_stars")
-        m_capa = (fb_man + 1) if fb_man is not None else 3
+        m_capa = (fb_man + 1) if fb_man is not None else 0
         
         c_m1, c_m2 = st.columns(2)
         with c_m1:
             m_tot = st.number_input("total de músicas", 1, 30, 10)
         with c_m2:
-            m_lik = st.number_input("músicas que gostou", 0, m_tot, 8)
+            m_lik = st.number_input("músicas que gostou", 0, m_tot, 0)
             m_fav = st.text_input("música favorita")
             
         if st.form_submit_button("adicionar à coleção"):
