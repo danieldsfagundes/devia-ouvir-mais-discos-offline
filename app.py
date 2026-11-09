@@ -35,7 +35,6 @@ st.markdown("""
         border: 1px solid #2a2a2a;
         margin-bottom: 20px;
     }
-    /* Área fixa do Disco do Dia */
     .disco-dia-container {
         background-color: #181818;
         border: 1px solid #2d2d2d;
@@ -43,7 +42,6 @@ st.markdown("""
         padding: 24px;
         margin-bottom: 30px;
     }
-    /* Botão estilizado do Spotify */
     .spotify-btn {
         display: inline-flex;
         align-items: center;
@@ -86,7 +84,6 @@ def load_data():
         'Total_Tracks': 10,
         'Liked_Tracks': 8,
         'Favorite_Track': '',
-        'My_Review': '',
         'Genres': 'geral',
         'Origin': 'Brasil',
         'List': 'Geral'
@@ -96,6 +93,12 @@ def load_data():
             df[col] = val_padrao
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
+    
+    # Cálculo da Nota Final (1 a 5) para ordenação padrão
+    # Nota capa (1 a 5) * 0.3 + Nota proporção faixas (1 a 5) * 0.7
+    prop = df['Liked_Tracks'] / df['Total_Tracks']
+    df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
+    
     return df
 
 @st.cache_data
@@ -121,35 +124,40 @@ if df_albums.empty:
 if 'popup_ativo' not in st.session_state:
     st.session_state.popup_ativo = True
 
-# Menu Lateral
+# MENU LATERAL REORGANIZADO
 st.sidebar.markdown("### 🎛️ menu")
-aba = st.sidebar.radio("navegar", ["coleção & histórico", "álbum do dia", "estatísticas"])
+aba = st.sidebar.radio(
+    "navegar", 
+    [
+        "disco do dia", 
+        "coleção & histórico", 
+        "estatísticas", 
+        "inserir manualmente"
+    ]
+)
 
-# ÁREA FIXA: DISCO DO DIA (NO TOPO DO SITE)
-if aba == "coleção & histórico" and st.session_state.popup_ativo:
+# 1. ABA: DISCO DO DIA
+if aba == "disco do dia":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
     
-    st.markdown("##### ✨ disco do dia")
+    st.markdown("### ✨ disco do dia em destaque")
     
     with st.container():
         st.markdown('<div class="disco-dia-container">', unsafe_allow_html=True)
         col_pop1, col_pop2 = st.columns([1, 2])
         
         with col_pop1:
-            # Nome sem emoji de disco
             st.markdown(f"### {album_hoje['Album']}")
             st.text(f"artista: {album_hoje['Artist']}")
             st.text(f"lançamento: {album_hoje['Released']}")
             
-            # Exibe a capa
             capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
             if capa_url:
                 st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
             else:
                 st.info("💿 Capa indisponível no momento")
             
-            # Botão do Spotify
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
             st.markdown(f"""
                 <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
@@ -159,32 +167,26 @@ if aba == "coleção & histórico" and st.session_state.popup_ativo:
             
         with col_pop2:
             st.markdown("#### 🎯 registre sua audição")
-            st.markdown("nota da capa")
+            st.markdown("nota da capa (1 a 5)")
             
-            # Avaliação interativa por estrelas estilo widget visual
-            # st.feedback retorna um índice de 0 a 4 (0 estrelas a 4 estrelas), então somamos +1 para 1 a 5.
             atual_rating = int(album_hoje.get('Cover_Rating', 3)) - 1
             if atual_rating < 0 or atual_rating > 4:
                 atual_rating = 2
                 
             feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
-            
-            # Define o valor da capa com base na interação (se o usuário clicou, usa o feedback, senão usa o padrão)
             cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
             
             tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
-            lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
+            lik_p = st.number_input("faixas que gostou (escala de 1 a 5 proporcional)", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
             
             if st.button("salvar audição do dia", type="primary"):
                 st.success("audição registrada com sucesso!")
-                st.session_state.popup_ativo = False
                 st.rerun()
                 
         st.markdown('</div>', unsafe_allow_html=True)
 
-# Aba de Coleção & Histórico
-if aba == "coleção & histórico":
-    st.markdown("---")
+# 2. ABA: COLEÇÃO & HISTÓRICO (DEFAULT: NOTA MAIS ALTA)
+elif aba == "coleção & histórico":
     st.markdown("### 📚 sua coleção de vinis & histórico")
     
     col_f1, col_f2, col_f3 = st.columns(3)
@@ -206,7 +208,10 @@ if aba == "coleção & histórico":
     if filtro_ano != "todos":
         df_filtrado = df_filtrado[df_filtrado['Released'] == filtro_ano]
 
-    st.caption(f"exibindo {len(df_filtrado)} discos no acervo com os filtros aplicados.")
+    # Ordenação padrão por nota mais alta
+    df_filtrado = df_filtrado.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
+
+    st.caption(f"exibindo {len(df_filtrado)} discos no acervo (ordenados da nota mais alta para a mais baixa).")
 
     cols = st.columns(4)
     for idx, row in enumerate(df_filtrado.head(24).iterrows()):
@@ -217,74 +222,88 @@ if aba == "coleção & histórico":
                 <div class="vinyl-card">
                     <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
                     <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
-                    <span style="color: #f59e0b; font-size: 12px;">📅 {r['Released']} | 🏷️ {r['List']}</span><br>
+                    <span style="color: #f59e0b; font-size: 12px;">📅 {r['Released']} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                     <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                    <span style="color: #1db954; font-size: 12px;">⭐ Capa: {r['Cover_Rating']}/5 | Aprov: {r['Liked_Tracks']}/{r['Total_Tracks']}</span>
+                    <span style="color: #1db954; font-size: 12px;">Capa: {r['Cover_Rating']}/5 | Aprov: {r['Liked_Tracks']}/{r['Total_Tracks']}</span>
                 </div>
             """, unsafe_allow_html=True)
             
             if st.button("editar / ver detalhes", key=f"btn_{i}"):
-                st.session_state.album_editando = i
+                st.session_state.album_editando = r['Album']
 
     if 'album_editando' in st.session_state:
         st.markdown("---")
-        st.subheader("✏️ detalhando e editando álbum selecionado")
-        sel_idx = st.session_state.album_editando
-        row_sel = df_albums.loc[sel_idx]
-        
-        c_ed1, c_ed2 = st.columns(2)
-        with c_ed1:
-            st.markdown(f"### {row_sel['Album']}")
-            st.text(f"artista: {row_sel['Artist']}")
-            st.text(f"ano: {row_sel['Released']}")
-            st.text(f"lista de origem: {row_sel['List']}")
+        with st.expander("✏️ **detalhando e editando álbum selecionado**", expanded=True):
+            album_sel_nome = st.session_state.album_editando
+            row_sel = df_albums[df_albums['Album'] == album_sel_nome].iloc[0]
+            sel_idx = df_albums[df_albums['Album'] == album_sel_nome].index[0]
             
-            capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
-            if capa_detalhe:
-                st.image(capa_detalhe, caption=row_sel['Album'], width=300)
+            c_ed1, c_ed2 = st.columns(2)
+            with c_ed1:
+                st.markdown(f"### {row_sel['Album']}")
+                st.text(f"artista: {row_sel['Artist']}")
+                st.text(f"ano: {row_sel['Released']}")
+                
+                capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
+                if capa_detalhe:
+                    st.image(capa_detalhe, caption=row_sel['Album'], width=300)
+                
+                query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
+                st.markdown(f"""
+                    <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" class="spotify-btn">
+                        <span class="spotify-icon">🎧</span> ouvir álbum completo
+                    </a>
+                """, unsafe_allow_html=True)
+                
+            with c_ed2:
+                st.markdown("nota da capa (1 a 5)")
+                fb_ed = st.feedback("stars", key=f"c_ed_feedback_{sel_idx}")
+                atual_ed_rating = int(row_sel['Cover_Rating']) - 1
+                if atual_ed_rating < 0 or atual_ed_rating > 4:
+                    atual_ed_rating = 2
+                nova_capa = (fb_ed + 1) if fb_ed is not None else (atual_ed_rating + 1)
+                
+                tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"t_ed_{sel_idx}")
+                lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"l_ed_{sel_idx}")
+                fav_m = st.text_input("música favorita", value=str(row_sel['Favorite_Track']), key=f"f_ed_{sel_idx}")
+                
+                nota_capa_conv = (nova_capa / 5.0) * 5.0
+                prop_musicas = (lik_f / tot_f) if tot_f > 0 else 0
+                nota_musicas_conv = prop_musicas * 5.0
+                nota_final_calculada = (nota_musicas_conv * 0.70) + (nota_capa_conv * 0.30)
+                
+                st.info(f"🎯 **nota final calculada: {nota_final_calculada:.2f} / 5**")
+                
+                if st.button("salvar alterações no acervo", type="primary"):
+                    df_albums.loc[sel_idx, 'Cover_Rating'] = nova_capa
+                    df_albums.loc[sel_idx, 'Total_Tracks'] = tot_f
+                    df_albums.loc[sel_idx, 'Liked_Tracks'] = lik_f
+                    df_albums.loc[sel_idx, 'Favorite_Track'] = fav_m
+                    df_albums.to_csv("albums.csv", index=False)
+                    st.success("salvo com sucesso!")
+                    del st.session_state.album_editando
+                    st.rerun()
             
-            query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
-            st.markdown(f"""
-                <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" class="spotify-btn">
-                    <span class="spotify-icon">🎧</span> ouvir álbum completo
-                </a>
-            """, unsafe_allow_html=True)
-            
-        with c_ed2:
-            st.markdown("nota da capa")
-            fb_ed = st.feedback("stars", key=f"c_ed_feedback_{sel_idx}")
-            atual_ed_rating = int(row_sel['Cover_Rating']) - 1
-            if atual_ed_rating < 0 or atual_ed_rating > 4:
-                atual_ed_rating = 2
-            nova_capa = (fb_ed + 1) if fb_ed is not None else (atual_ed_rating + 1)
-            
-            tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"t_ed_{sel_idx}")
-            lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"l_ed_{sel_idx}")
-            fav_m = st.text_input("música favorita", value=str(row_sel['Favorite_Track']), key=f"f_ed_{sel_idx}")
-            rev_m = st.text_area("suas anotações / resenha", value=str(row_sel['My_Review']), key=f"r_ed_{sel_idx}")
-            
-            nota_capa_conv = (nova_capa / 5.0) * 10.0
-            prop_musicas = (lik_f / tot_f) if tot_f > 0 else 0
-            nota_musicas_conv = prop_musicas * 10.0
-            nota_final_calculada = (nota_musicas_conv * 0.70) + (nota_capa_conv * 0.30)
-            
-            st.info(f"🎯 **nota final calculada: {nota_final_calculada:.2f} / 10**")
-            
-            if st.button("salvar alterações no acervo", type="primary"):
-                df_albums.loc[sel_idx, 'Cover_Rating'] = nova_capa
-                df_albums.loc[sel_idx, 'Total_Tracks'] = tot_f
-                df_albums.loc[sel_idx, 'Liked_Tracks'] = lik_f
-                df_albums.loc[sel_idx, 'Favorite_Track'] = fav_m
-                df_albums.loc[sel_idx, 'My_Review'] = rev_m
-                df_albums.to_csv("albums.csv", index=False)
-                st.success("salvo com sucesso!")
+            if st.button("fechar editor"):
                 del st.session_state.album_editando
                 st.rerun()
 
-elif aba == "álbum do dia":
-    st.subheader("🎲 gerenciador diário & inserção manual")
+# 3. ABA: ESTATÍSTICAS
+elif aba == "estatísticas":
+    st.subheader("📊 estatísticas da sua coleção")
+    c_s1, c_s2, c_s3 = st.columns(3)
+    with c_s1:
+        st.metric("total de discos catalogados", len(df_albums))
+    with c_s2:
+        media_aproveitamento = (df_albums['Liked_Tracks'] / df_albums['Total_Tracks']).mean() * 100
+        st.metric("aproveitamento médio de faixas", f"{media_aproveitamento:.1f}%")
+    with c_s3:
+        st.metric("média de nota das capas", f"{df_albums['Cover_Rating'].mean():.1f} / 5")
+
+# 4. ABA: INSERIR MANUALMENTE
+elif aba == "inserir manualmente":
+    st.subheader("➕ inserir novo disco manualmente")
     with st.form("form_manual"):
-        st.markdown("### inserir novo disco manualmente")
         m_artista = st.text_input("artista / banda")
         m_album = st.text_input("nome do álbum")
         m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
@@ -307,15 +326,8 @@ elif aba == "álbum do dia":
                 'Cover_Rating': m_capa,
                 'Total_Tracks': m_tot,
                 'Liked_Tracks': m_lik,
-                'Favorite_Track': m_fav,
-                'My_Review': ''
+                'Favorite_Track': m_fav
             }])
             df_atualizado = pd.concat([df_albums, novo_registro], ignore_index=True)
             df_atualizado.to_csv("albums.csv", index=False)
             st.success(f"'{m_album}' adicionado com sucesso!")
-
-elif aba == "estatísticas":
-    st.subheader("📊 estatísticas da sua coleção")
-    c_s1, c_s2, c_s3 = st.columns(3)
-    with c_s1:
-        st.metric("total de discos catalogados", len(df_albums))
