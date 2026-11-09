@@ -58,7 +58,7 @@ st.markdown("""
         margin-right: 8px;
         font-size: 16px;
     }
-    /* Estilização para deixar os botões de filtro compactos e alinhados como texto */
+    /* Estilo limpo para os botões interativos de texto */
     div.stButton > button:first-child {
         background-color: transparent !important;
         color: #a0a0a0 !important;
@@ -128,7 +128,7 @@ def obter_html_bandeira(pais):
     primeiro_pais = p_limpo.split(',')[0].strip()
     iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/16x12/{iso}.png"
-    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}">'
+    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 4px; border-radius: 2px;" alt="{pais}">'
 
 def render_estrelas(num):
     try:
@@ -247,7 +247,7 @@ if st.session_state.filtro_aba == "álbum do dia":
         html_bandeira = obter_html_bandeira(pais_nome)
         st.markdown(f"**País:** {html_bandeira} {pais_nome}", unsafe_allow_html=True)
         
-        st.markdown(f"**Lançamento:** {int(album_hoje['Released']) if pd.notna(album_hoje['Released']) else ''}")
+        st.markdown(f"**Lançamento:** 📅 {int(album_hoje['Released']) if pd.notna(album_hoje['Released']) else ''}")
         
         capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
         if capa_url:
@@ -305,7 +305,6 @@ elif st.session_state.filtro_aba == "minha coleção":
                     r = lista_discos[flat_idx]
                     with cols[col_idx]:
                         pais_card = str(r.get('Country', 'Brasil')).strip()
-                        p_primario = pais_card.split(',')[0].strip().title()
                         ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
                         c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
                         n_val = float(r['Nota_Calculada'])
@@ -322,14 +321,15 @@ elif st.session_state.filtro_aba == "minha coleção":
                             st.rerun()
                             
                         html_b = obter_html_bandeira(pais_card)
-                        if st.button(f"País: {html_b} {pais_card}", key=f"col_pai_{flat_idx}"):
+                        st.markdown(f"País: {html_b}", unsafe_allow_html=True)
+                        if st.button(f"{pais_card}", key=f"col_pai_{flat_idx}"):
                             st.session_state.filtro_artista_val = "todos"
                             st.session_state.filtro_pais_val = str(pais_card)
                             st.session_state.filtro_ano_val = "todos"
                             st.session_state.filtro_aba = "histórico"
                             st.rerun()
                             
-                        if st.button(f"Lançamento: {ano_val}", key=f"col_ano_{flat_idx}"):
+                        if st.button(f"📅 {ano_val}", key=f"col_ano_{flat_idx}"):
                             st.session_state.filtro_artista_val = "todos"
                             st.session_state.filtro_pais_val = "todos"
                             st.session_state.filtro_ano_val = str(ano_val)
@@ -481,8 +481,6 @@ elif st.session_state.filtro_aba == "histórico":
                 r = lista_discos_hist[flat_idx]
                 with cols[col_idx]:
                     pais_card = str(r.get('Country', 'Brasil')).strip()
-                    p_primario = pais_card.split(',')[0].strip().title()
-                    iso_card = MAPA_ISO.get(p_primario, "un")
                     ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
                     c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
                     n_val = float(r['Nota_Calculada'])
@@ -498,13 +496,14 @@ elif st.session_state.filtro_aba == "histórico":
                         st.rerun()
                         
                     html_b = obter_html_bandeira(pais_card)
-                    if st.button(f"País: {html_b} {pais_card}", key=f"hist_pai_{flat_idx}"):
+                    st.markdown(f"{html_b}", unsafe_allow_html=True)
+                    if st.button(f"{pais_card}", key=f"hist_pai_{flat_idx}"):
                         st.session_state.filtro_artista_val = "todos"
                         st.session_state.filtro_pais_val = str(pais_card)
                         st.session_state.filtro_ano_val = "todos"
                         st.rerun()
                             
-                    if st.button(f"Lançamento: {ano_val}", key=f"hist_ano_{flat_idx}"):
+                    if st.button(f"📅 {ano_val}", key=f"hist_ano_{flat_idx}"):
                         st.session_state.filtro_artista_val = "todos"
                         st.session_state.filtro_pais_val = "todos"
                         st.session_state.filtro_ano_val = str(ano_val)
