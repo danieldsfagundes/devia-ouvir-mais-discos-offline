@@ -33,7 +33,7 @@ st.markdown("""
         padding: 15px;
         border-radius: 12px;
         border: 1px solid #2a2a2a;
-        margin-bottom: 5px;
+        margin-bottom: 10px;
     }
     .spotify-btn {
         display: inline-flex;
@@ -104,7 +104,7 @@ def obter_html_bandeira(pais):
     primeiro_pais = p_limpo.split(',')[0].strip()
     iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/24x18/{iso}.png"
-    return f'<img src="{url_bandeira}" style="width: 20px; height: 15px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}">'
+    return f'<img src="{url_bandeira}" style="width: 20px; height: 15px; vertical-align: middle; margin-right: 5px; border-radius: 2px;" alt="{pais}"> {pais}'
 
 def render_estrelas(num):
     try:
@@ -178,29 +178,39 @@ df_albums = carregar_dados_frescos()
 if df_albums.empty:
     st.stop()
 
-# Gerenciamento de abas via Session State para permitir cliques redirecionados
-if 'aba_selecionada' not in st.session_state:
-    st.session_state.aba_selecionada = "álbum do dia"
+# Inicializa estados de filtro se não existirem
+if 'filtro_aba' not in st.session_state:
+    st.session_state.filtro_aba = "histórico"
+if 'filtro_artista_val' not in st.session_state:
+    st.session_state.filtro_artista_val = "todos"
+if 'filtro_pais_val' not in st.session_state:
+    st.session_state.filtro_pais_val = "todos"
+if 'filtro_ano_val' not in st.session_state:
+    st.session_state.filtro_ano_val = "todos"
 
 # MENU LATERAL REORGANIZADO
 st.sidebar.markdown("### 🎛️ menu")
-opcoes_menu = ["álbum do dia", "histórico", "estatísticas", "minha coleção", "inserir manualmente"]
+abas_disponiveis = ["álbum do dia", "histórico", "estatísticas", "minha coleção", "inserir manualmente"]
 
-if st.session_state.aba_selecionada not in opcoes_menu:
-    st.session_state.aba_selecionada = "álbum do dia"
-
-idx_aba_atual = opcoes_menu.index(st.session_state.aba_selecionada)
+# Sincroniza o rádio com o st.session_state.filtro_aba se necessário
+try:
+    default_idx = abas_disponiveis.index(st.session_state.filtro_aba)
+except:
+    default_idx = 1
 
 aba = st.sidebar.radio(
     "navegar", 
-    opcoes_menu,
-    index=idx_aba_atual,
-    key="radio_navegacao"
+    abas_disponiveis,
+    index=default_idx,
+    key="menu_navegacao_radio"
 )
-st.session_state.aba_selecionada = aba
+
+# Atualiza session_state quando o usuário clica manualmente no menu
+if aba != st.session_state.filtro_aba:
+    st.session_state.filtro_aba = aba
 
 # 1. ABA: ÁLBUM DO DIA
-if aba == "álbum do dia":
+if st.session_state.filtro_aba == "álbum do dia":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
     
@@ -214,7 +224,7 @@ if aba == "álbum do dia":
         
         pais_nome = str(album_hoje.get('Country', 'Brasil')).strip()
         html_bandeira = obter_html_bandeira(pais_nome)
-        st.markdown(f"**País:** {html_bandeira} {pais_nome}", unsafe_allow_html=True)
+        st.markdown(f"**País:** {html_bandeira}", unsafe_allow_html=True)
         
         st.markdown(f"**Lançamento:** {int(album_hoje['Released']) if pd.notna(album_hoje['Released']) else ''}")
         
@@ -254,7 +264,7 @@ if aba == "álbum do dia":
             st.rerun()
 
 # 2. ABA: MINHA COLEÇÃO
-elif aba == "minha coleção":
+elif st.session_state.filtro_aba == "minha coleção":
     st.markdown("### 💽 minha coleção de vinis")
     
     df_colecao = df_albums[df_albums['Colecao'].str.strip().str.lower().isin(['sim', 's', 'yes', 'true', '1'])].copy()
@@ -281,35 +291,40 @@ elif aba == "minha coleção":
                         n_val = float(r['Nota_Calculada'])
                         str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                         
+                        st.markdown(f'<div class="vinyl-card">', unsafe_allow_html=True)
+                        st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
+                        
+                        # Botão para filtrar por Artista
+                        if st.button(f"{r['Artist']}", key=f"col_art_{flat_idx}"):
+                            st.session_state.filtro_artista_val = str(r['Artist'])
+                            st.session_state.filtro_pais_val = "todos"
+                            st.session_state.filtro_ano_val = "todos"
+                            st.session_state.filtro_aba = "histórico"
+                            st.rerun()
+                            
+                        # Linha de país e ano com botões interativos
+                        col_inf1, col_inf2 = st.columns(2)
+                        with col_inf1:
+                            if st.button(f"📍 {pais_card}", key=f"col_pai_{flat_idx}"):
+                                st.session_state.filtro_artista_val = "todos"
+                                st.session_state.filtro_pais_val = str(pais_card)
+                                st.session_state.filtro_ano_val = "todos"
+                                st.session_state.filtro_aba = "histórico"
+                                st.rerun()
+                        with col_inf2:
+                            if st.button(f"📅 {ano_val}", key=f"col_ano_{flat_idx}"):
+                                st.session_state.filtro_artista_val = "todos"
+                                st.session_state.filtro_pais_val = "todos"
+                                st.session_state.filtro_ano_val = str(ano_val)
+                                st.session_state.filtro_aba = "histórico"
+                                st.rerun()
+                                
                         st.markdown(f"""
-                            <div class="vinyl-card">
-                                <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
-                                <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
-                                <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
-                                <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
-                                <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
+                            <hr style="border: 0.5px solid #333; margin: 8px 0;">
+                            <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Botões de filtro rápido interativos
-                        bc1, bc2, bc3 = st.columns(3)
-                        with bc1:
-                            if st.button("🎤 Artista", key=f"f_art_col_{flat_idx}", help=f"Filtrar por {r['Artist']}"):
-                                st.session_state.filtro_artista_ativo = r['Artist']
-                                st.session_state.aba_selecionada = "histórico"
-                                st.rerun()
-                        with bc2:
-                            if st.button("🌍 País", key=f"f_pais_col_{flat_idx}", help=f"Filtrar por {pais_card}"):
-                                st.session_state.filtro_pais_ativo = pais_card
-                                st.session_state.aba_selecionada = "histórico"
-                                st.rerun()
-                        with bc3:
-                            if st.button("📅 Ano", key=f"f_ano_col_{flat_idx}", help=f"Filtrar por {ano_val}"):
-                                st.session_state.filtro_ano_ativo = str(ano_val)
-                                st.session_state.aba_selecionada = "histórico"
-                                st.rerun()
-
                         if st.button("editar / ver detalhes", key=f"btn_col_{flat_idx}"):
                             if st.session_state.get('album_editando') == r['Album']:
                                 del st.session_state.album_editando
@@ -393,7 +408,7 @@ elif aba == "minha coleção":
                         st.markdown("---")
 
 # 3. ABA: HISTÓRICO
-elif aba == "histórico":
+elif st.session_state.filtro_aba == "histórico":
     st.markdown("### 📚 histórico")
     
     artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
@@ -401,32 +416,34 @@ elif aba == "histórico":
     anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
     anos_str_disponiveis = ["todos"] + [str(int(a)) for a in anos_disponiveis]
 
-    # Verificar se veio filtro externo via clique nos botões do card
-    if 'filtro_artista_ativo' in st.session_state:
-        default_art_idx = artistas_disponiveis.index(st.session_state.filtro_artista_ativo) if st.session_state.filtro_artista_ativo in artistas_disponiveis else 0
-        del st.session_state.filtro_artista_ativo
-    else:
-        default_art_idx = 0
+    # Garante índices válidos para os selects
+    try:
+        idx_art = artistas_disponiveis.index(st.session_state.filtro_artista_val)
+    except:
+        idx_art = 0
 
-    if 'filtro_pais_ativo' in st.session_state:
-        default_pais_idx = paises_disponiveis.index(st.session_state.filtro_pais_ativo) if st.session_state.filtro_pais_ativo in paises_disponiveis else 0
-        del st.session_state.filtro_pais_ativo
-    else:
-        default_pais_idx = 0
+    try:
+        idx_pais = paises_disponiveis.index(st.session_state.filtro_pais_val)
+    except:
+        idx_pais = 0
 
-    if 'filtro_ano_ativo' in st.session_state:
-        default_ano_idx = anos_str_disponiveis.index(st.session_state.filtro_ano_ativo) if st.session_state.filtro_ano_ativo in anos_str_disponiveis else 0
-        del st.session_state.filtro_ano_ativo
-    else:
-        default_ano_idx = 0
+    try:
+        idx_ano = anos_str_disponiveis.index(st.session_state.filtro_ano_val)
+    except:
+        idx_ano = 0
 
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
-        filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis, index=default_art_idx)
+        filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis, index=idx_art, key="sel_artista_hist")
     with col_f2:
-        filtro_pais = st.selectbox("filtrar por país", paises_disponiveis, index=default_pais_idx)
+        filtro_pais = st.selectbox("filtrar por país", paises_disponiveis, index=idx_pais, key="sel_pais_hist")
     with col_f3:
-        filtro_ano = st.selectbox("filtrar por ano de lançamento", anos_str_disponiveis, index=default_ano_idx)
+        filtro_ano = st.selectbox("filtrar por ano de lançamento", anos_str_disponiveis, index=idx_ano, key="sel_ano_hist")
+
+    # Atualiza o session_state se o usuário mexer manualmente nos selects
+    st.session_state.filtro_artista_val = filtro_artista
+    st.session_state.filtro_pais_val = filtro_pais
+    st.session_state.filtro_ano_val = filtro_ano
 
     df_filtrado = df_albums.copy()
     if filtro_artista != "todos":
@@ -456,35 +473,36 @@ elif aba == "histórico":
                     n_val = float(r['Nota_Calculada'])
                     str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                     
+                    st.markdown(f'<div class="vinyl-card">', unsafe_allow_html=True)
+                    st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
+                    
+                    # Botão para filtrar por Artista ao clicar no nome da banda
+                    if st.button(f"{r['Artist']}", key=f"hist_art_{flat_idx}"):
+                        st.session_state.filtro_artista_val = str(r['Artist'])
+                        st.session_state.filtro_pais_val = "todos"
+                        st.session_state.filtro_ano_val = "todos"
+                        st.rerun()
+                        
+                    col_inf1, col_inf2 = st.columns(2)
+                    with col_inf1:
+                        if st.button(f"📍 {pais_card}", key=f"hist_pai_{flat_idx}"):
+                            st.session_state.filtro_artista_val = "todos"
+                            st.session_state.filtro_pais_val = str(pais_card)
+                            st.session_state.filtro_ano_val = "todos"
+                            st.rerun()
+                    with col_inf2:
+                        if st.button(f"📅 {ano_val}", key=f"hist_ano_{flat_idx}"):
+                            st.session_state.filtro_artista_val = "todos"
+                            st.session_state.filtro_pais_val = "todos"
+                            st.session_state.filtro_ano_val = str(ano_val)
+                            st.rerun()
+                            
                     st.markdown(f"""
-                        <div class="vinyl-card">
-                            <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
-                            <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
-                            <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
-                            <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
-                            <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
+                        <hr style="border: 0.5px solid #333; margin: 8px 0;">
+                        <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # Botões de filtro rápido interativos
-                    bc1, bc2, bc3 = st.columns(3)
-                    with bc1:
-                        if st.button("🎤 Artista", key=f"f_art_hist_{flat_idx}", help=f"Filtrar por {r['Artist']}"):
-                            st.session_state.filtro_artista_ativo = r['Artist']
-                            st.session_state.aba_selecionada = "histórico"
-                            st.rerun()
-                    with bc2:
-                        if st.button("🌍 País", key=f"f_pais_hist_{flat_idx}", help=f"Filtrar por {pais_card}"):
-                            st.session_state.filtro_pais_ativo = pais_card
-                            st.session_state.aba_selecionada = "histórico"
-                            st.rerun()
-                    with bc3:
-                        if st.button("📅 Ano", key=f"f_ano_hist_{flat_idx}", help=f"Filtrar por {ano_val}"):
-                            st.session_state.filtro_ano_ativo = str(ano_val)
-                            st.session_state.aba_selecionada = "histórico"
-                            st.rerun()
-
                     if st.button("editar / ver detalhes", key=f"btn_hist_{flat_idx}"):
                         if st.session_state.get('album_editando') == r['Album']:
                             del st.session_state.album_editando
@@ -537,4 +555,85 @@ elif aba == "histórico":
                             lik_f = st.number_input("músicas que gostou", 0, tot_f, lik_val, key=f"hist_lik_{flat_idx}")
                             
                             fav_val = str(row_sel.get('Favorite_Track', ''))
-                            if fav_val.lower() ==
+                            if fav_val.lower() == 'nan': fav_val = ''
+                            fav_m = st.text_input("música favorita", value=fav_val, key=f"hist_f_{flat_idx}")
+                            
+                            colecao_atual = str(row_sel.get('Colecao', 'Não')).strip().capitalize()
+                            idx_col = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
+                            nova_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col, key=f"hist_s_{flat_idx}")
+                            
+                            if st.button("salvar alterações", type="primary", key=f"hist_save_{flat_idx}"):
+                                df_all = pd.read_csv("albums.csv", dtype=str)
+                                m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
+                                if len(m_idx) > 0:
+                                    idx_s = m_idx[0]
+                                    if fb_ed is not None:
+                                        df_all.loc[idx_s, 'Cover_Rating'] = str(int(fb_ed + 1))
+                                    df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_f))
+                                    df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_f))
+                                    df_all.loc[idx_s, 'Favorite_Track'] = str(fav_m)
+                                    df_all.loc[idx_s, 'Colecao'] = str(nova_colecao)
+                                    df_all.to_csv("albums.csv", index=False)
+                                    st.success("Salvo com sucesso!")
+                                    del st.session_state.album_editando
+                                    st.rerun()
+                                else:
+                                    st.error("Erro ao localizar álbum para salvar.")
+                                    
+                            if st.button("fechar editor", key=f"hist_close_{flat_idx}"):
+                                del st.session_state.album_editando
+                                st.rerun()
+                    st.markdown("---")
+
+# 4. ABA: ESTATÍSTICAS
+elif st.session_state.filtro_aba == "estatísticas":
+    st.subheader("📊 estatísticas da sua coleção")
+    c_s1, c_s2, c_s3 = st.columns(3)
+    with c_s1:
+        st.metric("total de discos catalogados", len(df_albums))
+    with c_s2:
+        media_aproveitamento = (df_albums['Liked_Tracks'].astype(float) / df_albums['Total_Tracks'].astype(float).replace(0, 1)).mean() * 100
+        st.metric("aproveitamento médio de faixas", f"{media_aproveitamento:.1f}%")
+    with c_s3:
+        st.metric("média de nota das capas", f"{df_albums['Cover_Rating'].astype(float).mean():.1f} / 5")
+
+# 5. ABA: INSERIR MANUALMENTE
+elif st.session_state.filtro_aba == "inserir manualmente":
+    st.subheader("➕ inserir novo disco manualmente")
+    with st.form("form_manual"):
+        m_artista = st.text_input("artista / banda")
+        m_pais = st.text_input("país", value="Brasil")
+        m_album = st.text_input("nome do álbum")
+        m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
+        m_spotify = st.text_input("link do álbum no Spotify", value="Spotify")
+        m_colecao = st.selectbox("minha coleção", ["Sim", "Não"])
+        
+        st.markdown("nota da capa (1 a 5)")
+        fb_man = st.feedback("stars", key="manual_stars")
+        m_capa = (fb_man + 1) if fb_man is not None else 0
+        
+        c_m1, c_m2 = st.columns(2)
+        with c_m1:
+            m_tot = st.number_input("total de músicas", 1, 30, 10)
+        with c_m2:
+            m_lik = st.number_input("músicas que gostou", 0, m_tot, 0)
+            m_fav = st.text_input("música favorita")
+            
+        if st.form_submit_button("adicionar à coleção"):
+            df_all = pd.read_csv("albums.csv", dtype=str)
+            novo_registro = pd.DataFrame([{
+                'Artist': str(m_artista),
+                'Country': str(m_pais),
+                'Album': str(m_album),
+                'Released': str(int(m_ano)),
+                'Spotify_Link': str(m_spotify),
+                'Colecao': str(m_colecao),
+                'Cover_Rating': str(int(m_capa)),
+                'Total_Tracks': str(int(m_tot)),
+                'Liked_Tracks': str(int(m_lik)),
+                'Favorite_Track': str(m_fav),
+                'My_Review': ''
+            }])
+            df_atualizado = pd.concat([df_all, novo_registro], ignore_index=True)
+            df_atualizado.to_csv("albums.csv", index=False)
+            st.success(f"'{m_album}' adicionado com sucesso!")
