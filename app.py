@@ -136,7 +136,6 @@ def carregar_dados_frescos():
     df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
-    # Cálculo da nota: 70% proporção de músicas curtidas + 30% nota da capa
     prop = df['Liked_Tracks'] / df['Total_Tracks'].replace(0, 1)
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
     
@@ -266,7 +265,7 @@ elif aba == "minha coleção":
                                 <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                                 <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                                 <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/{int(float(r['Total_Tracks']))}</span>
+                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Nota: {r['Nota_Calculada']:.1f}/5</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -396,7 +395,7 @@ elif aba == "histórico":
                             <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                             <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                             <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/{int(float(r['Total_Tracks']))}</span>
+                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Nota: {r['Nota_Calculada']:.1f}/5</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
