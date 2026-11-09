@@ -62,7 +62,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
-st.caption("sua coleção digital inspirada em vinis • acervo unificado")
+st.caption("Ouvindo, explorando e avaliando discos em toda a sua arte.")
 
 @st.cache_data
 def load_data():
@@ -139,6 +139,11 @@ if aba == "disco do dia":
     with col_pop1:
         st.markdown(f"### {album_hoje['Album']}")
         st.text(f"Artista: {album_hoje['Artist']}")
+        
+        # País de origem
+        origem = album_hoje.get('Origin', 'Brasil')
+        st.text(f"Origem: {origem}")
+        
         st.text(f"Lançamento: {album_hoje['Released']}")
         
         capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
@@ -208,6 +213,7 @@ elif aba == "coleção & histórico":
                 <div class="vinyl-card">
                     <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
                     <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
+                    <span style="color: #888; font-size: 12px;">🌍 {r.get('Origin', 'Brasil')}</span><br>
                     <span style="color: #f59e0b; font-size: 12px;">📅 {r['Released']} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                     <hr style="border: 0.5px solid #333; margin: 8px 0;">
                     <span style="color: #1db954; font-size: 12px;">Capa: {r['Cover_Rating']}/5 | Aprov: {r['Liked_Tracks']}/{r['Total_Tracks']}</span>
@@ -228,6 +234,7 @@ elif aba == "coleção & histórico":
             with c_ed1:
                 st.markdown(f"### {row_sel['Album']}")
                 st.text(f"Artista: {row_sel['Artist']}")
+                st.text(f"Origem: {row_sel.get('Origin', 'Brasil')}")
                 st.text(f"Lançamento: {row_sel['Released']}")
                 
                 capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
@@ -291,6 +298,7 @@ elif aba == "inserir manualmente":
     st.subheader("➕ inserir novo disco manualmente")
     with st.form("form_manual"):
         m_artista = st.text_input("artista / banda")
+        m_origem = st.text_input("país de origem", value="Brasil")
         m_album = st.text_input("nome do álbum")
         m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
         m_lista = st.text_input("coleção / lista de origem", value="manual")
@@ -306,6 +314,7 @@ elif aba == "inserir manualmente":
         if st.form_submit_button("adicionar à coleção"):
             novo_registro = pd.DataFrame([{
                 'Artist': m_artista,
+                'Origin': m_origem,
                 'Album': m_album,
                 'Released': m_ano,
                 'List': m_lista,
