@@ -35,10 +35,37 @@ st.markdown("""
         border: 1px solid #2a2a2a;
         margin-bottom: 20px;
     }
-    .album-cover {
-        border-radius: 10px;
-        box-shadow: 0px 8px 20px rgba(0,0,0,0.7);
-        max-width: 100%;
+    /* Área fixa do Disco do Dia */
+    .disco-dia-container {
+        background-color: #181818;
+        border: 1px solid #2d2d2d;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 30px;
+    }
+    /* Botão estilizado do Spotify */
+    .spotify-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #1db954;
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 14px;
+        padding: 10px 20px;
+        border-radius: 25px;
+        text-decoration: none !important;
+        margin-top: 15px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+    }
+    .spotify-btn:hover {
+        background-color: #1ed760;
+        transform: scale(1.02);
+    }
+    .spotify-icon {
+        margin-right: 8px;
+        font-size: 16px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -71,7 +98,6 @@ def load_data():
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     return df
 
-# Função para buscar a capa oficial do álbum direto na API pública do iTunes
 @st.cache_data
 def buscar_capa_album(artist, album):
     try:
@@ -81,7 +107,6 @@ def buscar_capa_album(artist, album):
         if response.status_code == 200:
             data = response.json()
             if data['results']:
-                # Pega a imagem e aumenta a resolução para 600x600 pixels
                 artwork = data['results'][0]['artworkUrl100']
                 return artwork.replace('100x100b.jpg', '600x600bb.jpg').replace('100x100', '600x600')
     except Exception:
@@ -100,31 +125,56 @@ if 'popup_ativo' not in st.session_state:
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio("navegar", ["coleção & histórico", "álbum do dia", "estatísticas"])
 
-# Pop-up do Álbum do Dia com Capa na Tela
-if st.session_state.popup_ativo and aba == "coleção & histórico":
+# ÁREA FIXA: DISCO DO DIA (NO TOPO DO SITE)
+if aba == "coleção & histórico" and st.session_state.popup_ativo:
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
     
-    with st.expander("✨ **disco do dia em destaque (clique para fechar/abrir)**", expanded=True):
+    st.markdown("##### ✨ disco do dia")
+    
+    with st.container():
+        st.markdown('<div class="disco-dia-container">', unsafe_allow_html=True)
         col_pop1, col_pop2 = st.columns([1, 2])
+        
         with col_pop1:
-            st.markdown(f"### 💿 {album_hoje['Album']}")
+            # Nome limpo sem emoji
+            st.markdown(f"### {album_hoje['Album']}")
             st.text(f"artista: {album_hoje['Artist']}")
             st.text(f"lançamento: {album_hoje['Released']}")
             
-            # Busca e exibe a capa direto no site
+            # Exibe a capa do disco
             capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
             if capa_url:
                 st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
             else:
                 st.info("💿 Capa indisponível no momento")
             
+            # Botão do Spotify bonito e com o texto correto
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
-            st.markdown(f"🎧 [ouvir álbum completo no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
+            st.markdown(f"""
+                <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
+                    <span class="spotify-icon">🎧</span> ouvir álbum completo
+                </a>
+            """, unsafe_allow_html=True)
             
         with col_pop2:
             st.markdown("#### 🎯 registre sua audição")
-            cov_p = st.slider("nota da capa (1 a 5)", 1, 5, int(album_hoje.get('Cover_Rating', 4)), key="pop_cov")
+            
+            # Seleção por estrelas (1 a 5 estrelas)
+            estestrelas_opcoes = ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"]
+            capa_inicial_idx = int(album_hoje.get('Cover_Rating', 3)) - 1
+            if capa_inicial_idx < 0 or capa_inicial_idx > 4:
+                capa_inicial_idx = 2
+                
+            nota_estrela = st.select_slider(
+                "nota da capa",
+                options=estestrelas_opcoes,
+                value=estestrelas_opcoes[capa_inicial_idx],
+                key="pop_cov_stars"
+            )
+            # Converte as estrelas selecionadas em número (1 a 5)
+            cov_p = estestrelas_opcoes.index(nota_estrela) + 1
+            
             tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
             lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
             
@@ -132,6 +182,8 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
                 st.success("audição registrada com sucesso!")
                 st.session_state.popup_ativo = False
                 st.rerun()
+                
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Aba de Coleção & Histórico
 if aba == "coleção & histórico":
@@ -190,16 +242,31 @@ if aba == "coleção & histórico":
             st.text(f"ano: {row_sel['Released']}")
             st.text(f"lista de origem: {row_sel['List']}")
             
-            # Exibe a capa oficial do álbum detalhado direto no seu site
             capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
             if capa_detalhe:
                 st.image(capa_detalhe, caption=row_sel['Album'], width=300)
             
             query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
-            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
+            st.markdown(f"""
+                <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" class="spotify-btn">
+                    <span class="spotify-icon">🎧</span> ouvir álbum completo
+                </a>
+            """, unsafe_allow_html=True)
             
         with c_ed2:
-            nova_capa = st.slider("nota da capa (1 a 5)", 1, 5, int(row_sel['Cover_Rating']), key=f"c_ed_{sel_idx}")
+            estestrelas_opcoes = ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"]
+            capa_ed_idx = int(row_sel['Cover_Rating']) - 1
+            if capa_ed_idx < 0 or capa_ed_idx > 4:
+                capa_ed_idx = 2
+                
+            nota_ed_estrela = st.select_slider(
+                "nota da capa",
+                options=estestrelas_opcoes,
+                value=estestrelas_opcoes[capa_ed_idx],
+                key=f"c_ed_stars_{sel_idx}"
+            )
+            nova_capa = estestrelas_opcoes.index(nota_ed_estrela) + 1
+            
             tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"t_ed_{sel_idx}")
             lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"l_ed_{sel_idx}")
             fav_m = st.text_input("música favorita", value=str(row_sel['Favorite_Track']), key=f"f_ed_{sel_idx}")
