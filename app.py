@@ -134,7 +134,6 @@ def carregar_dados_frescos():
     df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
-    # Nota calculada baseada puramente na escala de 1 a 5 (Cover e Liked_Tracks)
     df['Nota_Calculada'] = (df['Liked_Tracks'] * 0.70) + (df['Cover_Rating'] * 0.30)
     
     return df
@@ -215,19 +214,26 @@ if aba == "álbum do dia":
         st.markdown("#### 🎵 registre sua audição")
         st.markdown("nota da capa (1 a 5)")
         
-        atual_rating = int(album_hoje.get('Cover_Rating', 3)) - 1
-        if atual_rating < 0 or atual_rating > 4:
-            atual_rating = 2
-            
+        val_c = row_val = album_hoje.get('Cover_Rating', 3)
+        try:
+            cur_c = int(float(val_c)) - 1
+        except:
+            cur_c = 2
+        cur_c = max(0, min(4, cur_c))
+        
         feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
-        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
+        cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (cur_c + 1)
         
         st.markdown("nota das músicas (1 a 5)")
-        atual_lik = int(album_hoje.get('Liked_Tracks', 4)) - 1
-        if atual_lik < 0 or atual_lik > 4:
-            atual_lik = 3
+        val_l = album_hoje.get('Liked_Tracks', 4)
+        try:
+            cur_l = int(float(val_l)) - 1
+        except:
+            cur_l = 3
+        cur_l = max(0, min(4, cur_l))
+        
         feedback_lik = st.feedback("stars", key="pop_lik_feedback")
-        lik_p = (feedback_lik + 1) if feedback_lik is not None else (atual_lik + 1)
+        lik_p = (feedback_lik + 1) if feedback_lik is not None else (cur_l + 1)
         
         if st.button("salvar audição do dia", type="primary"):
             st.success("audição registrada com sucesso!")
@@ -264,7 +270,7 @@ elif aba == "minha coleção":
                                 <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                                 <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                                 <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {int(r['Cover_Rating'])}/5 | Aprov: {int(r['Liked_Tracks'])}/5</span>
+                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/5</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -280,7 +286,6 @@ elif aba == "minha coleção":
                         with st.container():
                             st.markdown(f"✏️ **Editando: {r['Album']} ({r['Artist']})**")
                             
-                            # Carrega dados frescos direto do CSV para evitar dessincronização
                             df_fresh = pd.read_csv("albums.csv", dtype=str)
                             match_idx = df_fresh[(df_fresh['Album'] == r['Album']) & (df_fresh['Artist'] == r['Artist'])].index
                             if len(match_idx) > 0:
@@ -299,13 +304,19 @@ elif aba == "minha coleção":
                                 st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                             with c_ed2:
                                 st.markdown("nota da capa (1 a 5)")
-                                cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
+                                try:
+                                    cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
+                                except:
+                                    cur_c = 2
                                 cur_c = max(0, min(4, cur_c))
                                 fb_ed = st.feedback("stars", key=f"col_c_{flat_idx}")
                                 nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                                 
                                 st.markdown("nota das músicas (1 a 5)")
-                                cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                                try:
+                                    cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                                except:
+                                    cur_l = 3
                                 cur_l = max(0, min(4, cur_l))
                                 fb_l = st.feedback("stars", key=f"col_l_{flat_idx}")
                                 novo_lik = (fb_l + 1) if fb_l is not None else (cur_l + 1)
@@ -313,7 +324,6 @@ elif aba == "minha coleção":
                                 fav_val = str(row_sel.get('Favorite_Track', ''))
                                 if fav_val.lower() == 'nan': fav_val = ''
                                 fav_m = st.text_input("música favorita", value=fav_val, key=f"col_f_{flat_idx}")
-                                
                                 colecao_atual = str(row_sel.get('Colecao', 'Não')).strip().capitalize()
                                 idx_col = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
                                 nova_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col, key=f"col_s_{flat_idx}")
@@ -385,7 +395,7 @@ elif aba == "histórico":
                             <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
                             <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                             <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {int(r['Cover_Rating'])}/5 | Aprov: {int(r['Liked_Tracks'])}/5</span>
+                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Aprov: {int(float(r['Liked_Tracks']))}/5</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
@@ -401,7 +411,6 @@ elif aba == "histórico":
                     with st.container():
                         st.markdown(f"✏️ **Editando: {r['Album']} ({r['Artist']})**")
                         
-                        # Carrega dados frescos direto do CSV para garantir salvamento certeiro
                         df_fresh = pd.read_csv("albums.csv", dtype=str)
                         match_idx = df_fresh[(df_fresh['Album'] == r['Album']) & (df_fresh['Artist'] == r['Artist'])].index
                         if len(match_idx) > 0:
@@ -420,13 +429,19 @@ elif aba == "histórico":
                             st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                         with c_ed2:
                             st.markdown("nota da capa (1 a 5)")
-                            cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
+                            try:
+                                cur_c = int(float(row_sel.get('Cover_Rating', 3))) - 1
+                            except:
+                                cur_c = 2
                             cur_c = max(0, min(4, cur_c))
                             fb_ed = st.feedback("stars", key=f"hist_c_{flat_idx}")
                             nova_capa = (fb_ed + 1) if fb_ed is not None else (cur_c + 1)
                             
                             st.markdown("nota das músicas (1 a 5)")
-                            cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                            try:
+                                cur_l = int(float(row_sel.get('Liked_Tracks', 4))) - 1
+                            except:
+                                cur_l = 3
                             cur_l = max(0, min(4, cur_l))
                             fb_l = st.feedback("stars", key=f"hist_l_{flat_idx}")
                             novo_lik = (fb_l + 1) if fb_l is not None else (cur_l + 1)
