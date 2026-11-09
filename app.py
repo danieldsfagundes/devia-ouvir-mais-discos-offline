@@ -263,9 +263,9 @@ elif aba == "minha coleção":
                                 <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
                                 <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
                                 <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
-                                <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
+                                <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
                                 <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Nota: {r['Nota_Calculada']:.1f}/5</span>
+                                <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | ⭐ Nota Final: {r['Nota_Calculada']:.1f}/5</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -393,9 +393,9 @@ elif aba == "histórico":
                             <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
                             <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
                             <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
-                            <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
+                            <span style="color: #888; font-size: 12px;">📅 {ano_val}</span><br>
                             <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | Nota: {r['Nota_Calculada']:.1f}/5</span>
+                            <span style="color: #1db954; font-size: 12px;">Capa: {int(float(r['Cover_Rating']))}/5 | ⭐ Nota Final: {r['Nota_Calculada']:.1f}/5</span>
                         </div>
                     """, unsafe_allow_html=True)
                     
