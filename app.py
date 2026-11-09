@@ -111,7 +111,6 @@ def load_data():
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     
-    # Tratamento de valores nulos em colunas numéricas
     df['Cover_Rating'] = df['Cover_Rating'].fillna(3).astype(int)
     df['Total_Tracks'] = df['Total_Tracks'].fillna(10).astype(int)
     df['Liked_Tracks'] = df['Liked_Tracks'].fillna(8).astype(int)
@@ -138,6 +137,7 @@ def buscar_capa_album(artist, album):
 
 def obter_link_spotify(row):
     link_custom = row.get('Spotify_Link', '')
+    # Se houver um link válido com 'http', usa ele. Caso contrário, gera a busca direcionada.
     if isinstance(link_custom, str) and link_custom.strip().startswith('http'):
         return link_custom.strip()
     query_sp = urllib.parse.quote(f"{row['Artist']} {row['Album']}")
@@ -148,24 +148,24 @@ df_albums = load_data()
 if df_albums.empty:
     st.stop()
 
-# MENU LATERAL
+# MENU LATERAL (Atualizado para "álbum do dia")
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio(
     "navegar", 
     [
-        "disco do dia", 
+        "álbum do dia", 
         "coleção & histórico", 
         "estatísticas", 
         "inserir manualmente"
     ]
 )
 
-# 1. ABA: DISCO DO DIA
-if aba == "disco do dia":
+# 1. ABA: ÁLBUM DO DIA
+if aba == "álbum do dia":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
     
-    st.markdown("### 💿 disco do dia")
+    st.markdown("### 💿 álbum do dia")
     
     col_pop1, col_pop2 = st.columns([1, 2])
     
