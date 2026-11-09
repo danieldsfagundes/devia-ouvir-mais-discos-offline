@@ -104,8 +104,8 @@ def obter_html_bandeira(pais):
     primeiro_pais = p_limpo.split(',')[0].strip()
     iso = MAPA_ISO.get(primeiro_pais, "un")
     url_bandeira = f"https://flagcdn.com/16x12/{iso}.png"
-    # Espaçamento menor e controlado na margem direita (margin-right: 4px)
-    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 4px; border-radius: 2px;" alt="{pais}">'
+    # Espaçamento reduzido para 2px para ficar bem próximo do nome do país
+    return f'<img src="{url_bandeira}" style="width: 16px; height: 12px; vertical-align: middle; margin-right: 2px; border-radius: 2px;" alt="{pais}">'
 
 def render_estrelas(num):
     try:
