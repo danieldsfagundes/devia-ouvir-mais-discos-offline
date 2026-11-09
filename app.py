@@ -48,7 +48,7 @@ def load_data():
     
     df = pd.read_csv("albums.csv")
     
-    # Padronização e preenchimento de colunas essenciais
+    # Padronização e preenchimento seguro de colunas essenciais
     colunas_obrigatorias = {
         'Cover_Rating': 3,
         'Total_Tracks': 10,
@@ -63,7 +63,7 @@ def load_data():
         if col not in df.columns:
             df[col] = val_padrao
 
-    # Remove duplicatas baseadas no artista e no álbum
+    # Remove duplicatas preservando os registros avaliados primeiro
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     return df
 
@@ -93,7 +93,6 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
             
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
             st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
-            # Player embutido do Spotify para prévia imediata e exibição da capa/álbum
             st.markdown(f"""
                 <iframe src="https://open.spotify.com/embed/search/{query_sp}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
             """, unsafe_allow_html=True)
@@ -168,7 +167,6 @@ if aba == "coleção & histórico":
             
             query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
             st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
-            # Exibe o player embutido do Spotify com a capa do disco correspondente
             st.markdown(f"""
                 <iframe src="https://open.spotify.com/embed/search/{query_spotify}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
             """, unsafe_allow_html=True)
