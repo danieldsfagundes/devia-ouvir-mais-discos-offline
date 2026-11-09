@@ -4,7 +4,6 @@ import datetime
 import urllib.parse
 import os
 
-# 1. Configuração da página (DEVE vir antes de usar o streamlit)
 st.set_page_config(
     page_title="devia ouvir mais discos", 
     page_icon="🎶", 
@@ -35,13 +34,20 @@ st.markdown("""
         border: 1px solid #2a2a2a;
         margin-bottom: 20px;
     }
+    .spotify-box {
+        background-color: #181818;
+        border: 1px solid #282828;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        margin-top: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
 st.caption("sua coleção digital inspirada em vinis • acervo unificado")
 
-# 2. Carregamento dos Dados (Agora com st já importado!)
 @st.cache_data
 def load_data():
     if not os.path.exists("albums.csv"):
@@ -79,7 +85,7 @@ if 'popup_ativo' not in st.session_state:
 st.sidebar.markdown("### 🎛️ menu")
 aba = st.sidebar.radio("navegar", ["coleção & histórico", "álbum do dia", "estatísticas"])
 
-# Pop-up do Álbum do Dia com Integração Spotify
+# Pop-up do Álbum do Dia
 if st.session_state.popup_ativo and aba == "coleção & histórico":
     today_seed = int(datetime.date.today().strftime("%Y%m%d"))
     album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
@@ -92,9 +98,13 @@ if st.session_state.popup_ativo and aba == "coleção & histórico":
             st.text(f"lançamento: {album_hoje['Released']}")
             
             query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
-            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_sp})", unsafe_allow_html=True)
+            
+            # Caixa estilizada para ouvir no Spotify sem erro 404
             st.markdown(f"""
-                <iframe src="https://open.spotify.com/embed/search/{query_sp}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="spotify-box">
+                    <p style="color: #1db954; font-weight: bold; margin-bottom: 10px;">🟢 disponível no spotify</p>
+                    <a href="https://open.spotify.com/search/{query_sp}" target="_blank" style="background-color: #1db954; color: white; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; display: inline-block;">ouvir álbum completo</a>
+                </div>
             """, unsafe_allow_html=True)
             
         with col_pop2:
@@ -166,9 +176,11 @@ if aba == "coleção & histórico":
             st.text(f"lista de origem: {row_sel['List']}")
             
             query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
-            st.markdown(f"🎧 [ouvir no Spotify](https://open.spotify.com/search/{query_spotify})", unsafe_allow_html=True)
             st.markdown(f"""
-                <iframe src="https://open.spotify.com/embed/search/{query_spotify}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="spotify-box" style="margin-top: 20px;">
+                    <p style="color: #1db954; font-weight: bold; margin-bottom: 10px;">🟢 integração spotify</p>
+                    <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" style="background-color: #1db954; color: white; padding: 12px 24px; border-radius: 20px; text-decoration: none; font-weight: bold; display: inline-block;">abrir este álbum no Spotify</a>
+                </div>
             """, unsafe_allow_html=True)
             
         with c_ed2:
