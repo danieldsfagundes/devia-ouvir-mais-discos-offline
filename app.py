@@ -108,7 +108,7 @@ def obter_html_bandeira(pais):
 
 def render_estrelas(num):
     try:
-        n = int(float(num))
+        n = int(float(num)) if pd.notna(num) and str(num).strip() != '' and str(num).lower() != 'nan' else 0
     except:
         n = 0
     n = max(0, min(5, n))
@@ -146,7 +146,6 @@ def carregar_dados_frescos():
     df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
     df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
-    # Se Cover_Rating for 0, considerarmos nota calculada 0 (não avaliado)
     prop = df['Liked_Tracks'] / df['Total_Tracks'].replace(0, 1)
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
     
@@ -270,7 +269,7 @@ elif aba == "minha coleção":
                         p_primario = pais_card.split(',')[0].strip().title()
                         iso_card = MAPA_ISO.get(p_primario, "un")
                         ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
-                        c_val = int(float(r['Cover_Rating']))
+                        c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
                         n_val = float(r['Nota_Calculada'])
                         str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                         
@@ -318,7 +317,8 @@ elif aba == "minha coleção":
                                 url_sp = obter_link_spotify(row_sel)
                                 st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                             with c_ed2:
-                                c_salva = int(float(row_sel.get('Cover_Rating', 0)))
+                                raw_c = row_sel.get('Cover_Rating', '0')
+                                c_salva = int(float(raw_c)) if pd.notna(raw_c) and str(raw_c).strip() != '' and str(raw_c).lower() != 'nan' else 0
                                 st.markdown(f"**Nota atual da capa:** {render_estrelas(c_salva)}")
                                 st.markdown("alterar nota da capa (1 a 5)")
                                 fb_ed = st.feedback("stars", key=f"col_c_{flat_idx}")
@@ -405,7 +405,7 @@ elif aba == "histórico":
                     p_primario = pais_card.split(',')[0].strip().title()
                     iso_card = MAPA_ISO.get(p_primario, "un")
                     ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
-                    c_val = int(float(r['Cover_Rating']))
+                    c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
                     n_val = float(r['Nota_Calculada'])
                     str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                     
@@ -453,7 +453,8 @@ elif aba == "histórico":
                             url_sp = obter_link_spotify(row_sel)
                             st.markdown(f'<a href="{url_sp}" target="_blank" class="spotify-btn">🎧 ouvir no spotify</a>', unsafe_allow_html=True)
                         with c_ed2:
-                            c_salva = int(float(row_sel.get('Cover_Rating', 0)))
+                            raw_c = row_sel.get('Cover_Rating', '0')
+                            c_salva = int(float(raw_c)) if pd.notna(raw_c) and str(raw_c).strip() != '' and str(raw_c).lower() != 'nan' else 0
                             st.markdown(f"**Nota atual da capa:** {render_estrelas(c_salva)}")
                             st.markdown("alterar nota da capa (1 a 5)")
                             fb_ed = st.feedback("stars", key=f"hist_c_{flat_idx}")
