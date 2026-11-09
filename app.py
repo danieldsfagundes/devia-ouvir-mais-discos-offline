@@ -66,7 +66,7 @@ st.caption("Ouvindo, explorando e avaliando discos em toda a sua arte.")
 
 def obter_html_bandeira(pais):
     if not isinstance(pais, str):
-        return pais
+        return str(pais)
     p = pais.strip().title()
     codigos_iso = {
         "Brasil": "br",
@@ -101,15 +101,20 @@ def load_data():
         'Total_Tracks': 10,
         'Liked_Tracks': 8,
         'Favorite_Track': '',
-        'Genres': 'geral',
-        'Origin': 'Brasil',
-        'List': 'Geral'
+        'My_Review': '',
+        'Country': 'Brasil',
+        'Spotify_Link': ''
     }
     for col, val_padrao in colunas_obrigatorias.items():
         if col not in df.columns:
             df[col] = val_padrao
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
+    
+    # Tratamento de valores nulos em colunas numéricas
+    df['Cover_Rating'] = df['Cover_Rating'].fillna(3).astype(int)
+    df['Total_Tracks'] = df['Total_Tracks'].fillna(10).astype(int)
+    df['Liked_Tracks'] = df['Liked_Tracks'].fillna(8).astype(int)
     
     prop = df['Liked_Tracks'] / df['Total_Tracks']
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
@@ -131,13 +136,17 @@ def buscar_capa_album(artist, album):
         pass
     return None
 
+def obter_link_spotify(row):
+    link_custom = row.get('Spotify_Link', '')
+    if isinstance(link_custom, str) and link_custom.strip().startswith('http'):
+        return link_custom.strip()
+    query_sp = urllib.parse.quote(f"{row['Artist']} {row['Album']}")
+    return f"https://open.spotify.com/search/{query_sp}"
+
 df_albums = load_data()
 
 if df_albums.empty:
     st.stop()
-
-if 'popup_ativo' not in st.session_state:
-    st.session_state.popup_ativo = True
 
 # MENU LATERAL
 st.sidebar.markdown("### 🎛️ menu")
@@ -164,11 +173,11 @@ if aba == "disco do dia":
         st.markdown(f"### {album_hoje['Album']}")
         st.markdown(f"**Artista:** {album_hoje['Artist']}")
         
-        pais_nome = str(album_hoje.get('Origin', 'Brasil')).strip()
+        pais_nome = str(album_hoje.get('Country', 'Brasil')).strip()
         html_bandeira = obter_html_bandeira(pais_nome)
         st.markdown(f"**País:** {html_bandeira}", unsafe_allow_html=True)
         
-        st.markdown(f"**Lançamento:** {album_hoje['Released']}")
+        st.markdown(f"**Lançamento:** {int(album_hoje['Released']) if pd.notna(album_hoje['Released']) else ''}")
         
         capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
         if capa_url:
@@ -176,9 +185,9 @@ if aba == "disco do dia":
         else:
             st.info("💿 Capa indisponível no momento")
         
-        query_sp = urllib.parse.quote(f"{album_hoje['Artist']} {album_hoje['Album']}")
+        url_spotify = obter_link_spotify(album_hoje)
         st.markdown(f"""
-            <a href="https://open.spotify.com/search/{query_sp}" target="_blank" class="spotify-btn">
+            <a href="{url_spotify}" target="_blank" class="spotify-btn">
                 <span class="spotify-icon">🎧</span> ouvir álbum completo
             </a>
         """, unsafe_allow_html=True)
@@ -195,8 +204,6 @@ if aba == "disco do dia":
         cov_p = (feedback_estrelas + 1) if feedback_estrelas is not None else (atual_rating + 1)
         
         tot_p = st.number_input("total de faixas", 1, 30, int(album_hoje.get('Total_Tracks', 10)), key="pop_tot")
-        
-        # Frase indesejada removida aqui:
         lik_p = st.number_input("faixas que gostou", 0, tot_p, int(album_hoje.get('Liked_Tracks', 8)), key="pop_lik")
         
         if st.button("salvar audição do dia", type="primary"):
@@ -212,19 +219,19 @@ elif aba == "coleção & histórico":
         artistas_disponiveis = ["todos"] + sorted(df_albums['Artist'].dropna().astype(str).unique().tolist())
         filtro_artista = st.selectbox("filtrar por banda / artista", artistas_disponiveis)
     with col_f2:
-        listas_disponiveis = ["todos"] + sorted(df_albums['List'].dropna().astype(str).unique().tolist())
-        filtro_lista = st.selectbox("filtrar por lista / coleção", listas_disponiveis)
+        paises_disponiveis = ["todos"] + sorted(df_albums['Country'].dropna().astype(str).unique().tolist())
+        filtro_pais = st.selectbox("filtrar por país", paises_disponiveis)
     with col_f3:
         anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
-        filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + anos_disponiveis)
+        filtro_ano = st.selectbox("filtrar por ano de lançamento", ["todos"] + [str(int(a)) for a in anos_disponiveis])
 
     df_filtrado = df_albums.copy()
     if filtro_artista != "todos":
         df_filtrado = df_filtrado[df_filtrado['Artist'] == filtro_artista]
-    if filtro_lista != "todos":
-        df_filtrado = df_filtrado[df_filtrado['List'] == filtro_lista]
+    if filtro_pais != "todos":
+        df_filtrado = df_filtrado[df_filtrado['Country'] == filtro_pais]
     if filtro_ano != "todos":
-        df_filtrado = df_filtrado[df_filtrado['Released'] == filtro_ano]
+        df_filtrado = df_filtrado[df_filtrado['Released'].astype(int).astype(str) == filtro_ano]
 
     df_filtrado = df_filtrado.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
 
@@ -235,16 +242,17 @@ elif aba == "coleção & histórico":
         i, r = row
         col_atual = cols[idx % 4]
         with col_atual:
-            pais_card = str(r.get('Origin', 'Brasil')).strip()
+            pais_card = str(r.get('Country', 'Brasil')).strip()
             iso_card = "br" if "brasil" in pais_card.lower() else "us"
+            ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
             st.markdown(f"""
                 <div class="vinyl-card">
                     <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
                     <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
                     <span style="color: #888; font-size: 12px;"><img src="https://flagcdn.com/16x12/{iso_card}.png" style="vertical-align: middle;"> {pais_card}</span><br>
-                    <span style="color: #f59e0b; font-size: 12px;">📅 {r['Released']} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
+                    <span style="color: #f59e0b; font-size: 12px;">📅 {ano_val} | ⭐ Nota: {r['Nota_Calculada']:.1f}/5</span><br>
                     <hr style="border: 0.5px solid #333; margin: 8px 0;">
-                    <span style="color: #1db954; font-size: 12px;">Capa: {r['Cover_Rating']}/5 | Aprov: {r['Liked_Tracks']}/{r['Total_Tracks']}</span>
+                    <span style="color: #1db954; font-size: 12px;">Capa: {int(r['Cover_Rating'])}/5 | Aprov: {int(r['Liked_Tracks'])}/{int(r['Total_Tracks'])}</span>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -263,19 +271,19 @@ elif aba == "coleção & histórico":
                 st.markdown(f"### {row_sel['Album']}")
                 st.markdown(f"**Artista:** {row_sel['Artist']}")
                 
-                pais_sel = str(row_sel.get('Origin', 'Brasil')).strip()
+                pais_sel = str(row_sel.get('Country', 'Brasil')).strip()
                 html_bandeira_sel = obter_html_bandeira(pais_sel)
                 st.markdown(f"**País:** {html_bandeira_sel}", unsafe_allow_html=True)
                 
-                st.markdown(f"**Lançamento:** {row_sel['Released']}")
+                st.markdown(f"**Lançamento:** {int(row_sel['Released']) if pd.notna(row_sel['Released']) else ''}")
                 
                 capa_detalhe = buscar_capa_album(row_sel['Artist'], row_sel['Album'])
                 if capa_detalhe:
                     st.image(capa_detalhe, caption=row_sel['Album'], width=300)
                 
-                query_spotify = urllib.parse.quote(f"{row_sel['Artist']} {row_sel['Album']}")
+                url_spotify_detalhe = obter_link_spotify(row_sel)
                 st.markdown(f"""
-                    <a href="https://open.spotify.com/search/{query_spotify}" target="_blank" class="spotify-btn">
+                    <a href="{url_spotify_detalhe}" target="_blank" class="spotify-btn">
                         <span class="spotify-icon">🎧</span> ouvir álbum completo
                     </a>
                 """, unsafe_allow_html=True)
@@ -333,7 +341,7 @@ elif aba == "inserir manualmente":
         m_pais = st.text_input("país", value="Brasil")
         m_album = st.text_input("nome do álbum")
         m_ano = st.number_input("ano de lançamento", min_value=1900, max_value=2026, value=1975)
-        m_lista = st.text_input("coleção / lista de origem", value="manual")
+        m_spotify = st.text_input("link do álbum no Spotify")
         
         c_m1, c_m2 = st.columns(2)
         with c_m1:
@@ -346,14 +354,15 @@ elif aba == "inserir manualmente":
         if st.form_submit_button("adicionar à coleção"):
             novo_registro = pd.DataFrame([{
                 'Artist': m_artista,
-                'Origin': m_pais,
+                'Country': m_pais,
                 'Album': m_album,
                 'Released': m_ano,
-                'List': m_lista,
+                'Spotify_Link': m_spotify,
                 'Cover_Rating': m_capa,
                 'Total_Tracks': m_tot,
                 'Liked_Tracks': m_lik,
-                'Favorite_Track': m_fav
+                'Favorite_Track': m_fav,
+                'My_Review': ''
             }])
             df_atualizado = pd.concat([df_albums, novo_registro], ignore_index=True)
             df_atualizado.to_csv("albums.csv", index=False)
