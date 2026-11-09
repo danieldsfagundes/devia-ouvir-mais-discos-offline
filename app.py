@@ -113,17 +113,18 @@ def load_data():
         st.error("⚠️ O arquivo 'albums.csv' não foi encontrado no GitHub.")
         return pd.DataFrame()
     
-    df = pd.read_csv("albums.csv", on_bad_lines='skip')
+    df = pd.read_csv("albums.csv", on_bad_lines='skip', dtype=str)
     
     colunas_obrigatorias = {
-        'Cover_Rating': 3,
-        'Total_Tracks': 10,
-        'Liked_Tracks': 8,
+        'Cover_Rating': '3',
+        'Total_Tracks': '10',
+        'Liked_Tracks': '8',
         'Favorite_Track': '',
         'My_Review': '',
         'Country': 'Brasil',
         'Spotify_Link': 'Spotify',
-        'Colecao': 'Não'
+        'Colecao': 'Não',
+        'Released': '1975'
     }
     for col, val_padrao in colunas_obrigatorias.items():
         if col not in df.columns:
@@ -131,10 +132,14 @@ def load_data():
 
     df = df.drop_duplicates(subset=['Artist', 'Album'], keep='first').reset_index(drop=True)
     
-    df['Cover_Rating'] = df['Cover_Rating'].fillna(3).astype(int)
-    df['Total_Tracks'] = df['Total_Tracks'].fillna(10).astype(int)
-    df['Liked_Tracks'] = df['Liked_Tracks'].fillna(8).astype(int)
+    # Conversões seguras de tipos
+    df['Cover_Rating'] = pd.to_numeric(df['Cover_Rating'], errors='coerce').fillna(3).astype(int)
+    df['Total_Tracks'] = pd.to_numeric(df['Total_Tracks'], errors='coerce').fillna(10).astype(int)
+    df['Liked_Tracks'] = pd.to_numeric(df['Liked_Tracks'], errors='coerce').fillna(8).astype(int)
+    df['Released'] = pd.to_numeric(df['Released'], errors='coerce').fillna(1975).astype(int)
     df['Colecao'] = df['Colecao'].fillna('Não').astype(str)
+    df['Favorite_Track'] = df['Favorite_Track'].fillna('').astype(str)
+    df['Favorite_Track'] = df['Favorite_Track'].apply(lambda x: '' if x.lower() == 'nan' else x)
     
     prop = df['Liked_Tracks'] / df['Total_Tracks']
     df['Nota_Calculada'] = (prop * 5.0 * 0.70) + (df['Cover_Rating'] * 0.30)
@@ -297,17 +302,18 @@ elif aba == "minha coleção":
                                 
                                 tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"col_t_{sel_idx}")
                                 lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"col_l_{sel_idx}")
-                                fav_m = st.text_input("música favorita", value=str(row_sel['Favorite_Track']), key=f"col_f_{sel_idx}")
+                                fav_val = str(row_sel['Favorite_Track']) if pd.notna(row_sel['Favorite_Track']) and str(row_sel['Favorite_Track']).lower() != 'nan' else ''
+                                fav_m = st.text_input("música favorita", value=fav_val, key=f"col_f_{sel_idx}")
                                 colecao_atual = str(row_sel.get('Colecao', 'Não')).strip().capitalize()
                                 idx_col = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
                                 nova_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col, key=f"col_s_{sel_idx}")
                                 
                                 if st.button("salvar alterações", type="primary", key=f"col_save_{sel_idx}"):
-                                    df_albums.loc[sel_idx, 'Cover_Rating'] = nova_capa
-                                    df_albums.loc[sel_idx, 'Total_Tracks'] = tot_f
-                                    df_albums.loc[sel_idx, 'Liked_Tracks'] = lik_f
-                                    df_albums.loc[sel_idx, 'Favorite_Track'] = fav_m
-                                    df_albums.loc[sel_idx, 'Colecao'] = nova_colecao
+                                    df_albums.loc[sel_idx, 'Cover_Rating'] = int(nova_capa)
+                                    df_albums.loc[sel_idx, 'Total_Tracks'] = int(tot_f)
+                                    df_albums.loc[sel_idx, 'Liked_Tracks'] = int(lik_f)
+                                    df_albums.loc[sel_idx, 'Favorite_Track'] = str(fav_m)
+                                    df_albums.loc[sel_idx, 'Colecao'] = str(nova_colecao)
                                     df_albums.to_csv("albums.csv", index=False)
                                     st.success("Salvo com sucesso!")
                                     del st.session_state.album_editando
@@ -398,17 +404,18 @@ elif aba == "histórico":
                             
                             tot_f = st.number_input("total de músicas", 1, 30, int(row_sel['Total_Tracks']), key=f"hist_t_{sel_idx}")
                             lik_f = st.number_input("músicas que gostou", 0, tot_f, int(row_sel['Liked_Tracks']), key=f"hist_l_{sel_idx}")
-                            fav_m = st.text_input("música favorita", value=str(row_sel['Favorite_Track']), key=f"hist_f_{sel_idx}")
+                            fav_val = str(row_sel['Favorite_Track']) if pd.notna(row_sel['Favorite_Track']) and str(row_sel['Favorite_Track']).lower() != 'nan' else ''
+                            fav_m = st.text_input("música favorita", value=fav_val, key=f"hist_f_{sel_idx}")
                             colecao_atual = str(row_sel.get('Colecao', 'Não')).strip().capitalize()
                             idx_col = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
                             nova_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col, key=f"hist_s_{sel_idx}")
                             
                             if st.button("salvar alterações", type="primary", key=f"hist_save_{sel_idx}"):
-                                df_albums.loc[sel_idx, 'Cover_Rating'] = nova_capa
-                                df_albums.loc[sel_idx, 'Total_Tracks'] = tot_f
-                                df_albums.loc[sel_idx, 'Liked_Tracks'] = lik_f
-                                df_albums.loc[sel_idx, 'Favorite_Track'] = fav_m
-                                df_albums.loc[sel_idx, 'Colecao'] = nova_colecao
+                                df_albums.loc[sel_idx, 'Cover_Rating'] = int(nova_capa)
+                                df_albums.loc[sel_idx, 'Total_Tracks'] = int(tot_f)
+                                df_albums.loc[sel_idx, 'Liked_Tracks'] = int(lik_f)
+                                df_albums.loc[sel_idx, 'Favorite_Track'] = str(fav_m)
+                                df_albums.loc[sel_idx, 'Colecao'] = str(nova_colecao)
                                 df_albums.to_csv("albums.csv", index=False)
                                 st.success("Salvo com sucesso!")
                                 del st.session_state.album_editando
@@ -454,16 +461,16 @@ elif aba == "inserir manualmente":
             
         if st.form_submit_button("adicionar à coleção"):
             novo_registro = pd.DataFrame([{
-                'Artist': m_artista,
-                'Country': m_pais,
-                'Album': m_album,
-                'Released': m_ano,
-                'Spotify_Link': m_spotify,
-                'Colecao': m_colecao,
-                'Cover_Rating': m_capa,
-                'Total_Tracks': m_tot,
-                'Liked_Tracks': m_lik,
-                'Favorite_Track': m_fav,
+                'Artist': str(m_artista),
+                'Country': str(m_pais),
+                'Album': str(m_album),
+                'Released': int(m_ano),
+                'Spotify_Link': str(m_spotify),
+                'Colecao': str(m_colecao),
+                'Cover_Rating': int(m_capa),
+                'Total_Tracks': int(m_tot),
+                'Liked_Tracks': int(m_lik),
+                'Favorite_Track': str(m_fav),
                 'My_Review': ''
             }])
             df_atualizado = pd.concat([df_albums, novo_registro], ignore_index=True)
