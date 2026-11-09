@@ -58,6 +58,24 @@ st.markdown("""
         margin-right: 8px;
         font-size: 16px;
     }
+    /* Estilo para transformar botões do Streamlit em links de texto discretos */
+    div.stButton > button:first-child {
+        background-color: transparent !important;
+        color: #a0a0a0 !important;
+        border: none !important;
+        padding: 0 !important;
+        font-size: 14px !important;
+        font-weight: normal !important;
+        text-align: left !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    div.stButton > button:first-child:hover {
+        color: #1db954 !important;
+        background-color: transparent !important;
+        border: none !important;
+        text-decoration: underline;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -192,7 +210,6 @@ if 'filtro_ano_val' not in st.session_state:
 st.sidebar.markdown("### 🎛️ menu")
 abas_disponiveis = ["álbum do dia", "histórico", "estatísticas", "minha coleção", "inserir manualmente"]
 
-# Sincroniza o rádio com o st.session_state.filtro_aba se necessário
 try:
     default_idx = abas_disponiveis.index(st.session_state.filtro_aba)
 except:
@@ -205,7 +222,6 @@ aba = st.sidebar.radio(
     key="menu_navegacao_radio"
 )
 
-# Atualiza session_state quando o usuário clica manualmente no menu
 if aba != st.session_state.filtro_aba:
     st.session_state.filtro_aba = aba
 
@@ -291,10 +307,9 @@ elif st.session_state.filtro_aba == "minha coleção":
                         n_val = float(r['Nota_Calculada'])
                         str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                         
-                        st.markdown(f'<div class="vinyl-card">', unsafe_allow_html=True)
+                        st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
                         st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
                         
-                        # Botão para filtrar por Artista
                         if st.button(f"{r['Artist']}", key=f"col_art_{flat_idx}"):
                             st.session_state.filtro_artista_val = str(r['Artist'])
                             st.session_state.filtro_pais_val = "todos"
@@ -302,10 +317,9 @@ elif st.session_state.filtro_aba == "minha coleção":
                             st.session_state.filtro_aba = "histórico"
                             st.rerun()
                             
-                        # Linha de país e ano com botões interativos
                         col_inf1, col_inf2 = st.columns(2)
                         with col_inf1:
-                            if st.button(f"📍 {pais_card}", key=f"col_pai_{flat_idx}"):
+                            if st.button(f"🌐 {pais_card}", key=f"col_pai_{flat_idx}"):
                                 st.session_state.filtro_artista_val = "todos"
                                 st.session_state.filtro_pais_val = str(pais_card)
                                 st.session_state.filtro_ano_val = "todos"
@@ -416,7 +430,6 @@ elif st.session_state.filtro_aba == "histórico":
     anos_disponiveis = sorted(df_albums['Released'].dropna().unique().tolist())
     anos_str_disponiveis = ["todos"] + [str(int(a)) for a in anos_disponiveis]
 
-    # Garante índices válidos para os selects
     try:
         idx_art = artistas_disponiveis.index(st.session_state.filtro_artista_val)
     except:
@@ -440,7 +453,6 @@ elif st.session_state.filtro_aba == "histórico":
     with col_f3:
         filtro_ano = st.selectbox("filtrar por ano de lançamento", anos_str_disponiveis, index=idx_ano, key="sel_ano_hist")
 
-    # Atualiza o session_state se o usuário mexer manualmente nos selects
     st.session_state.filtro_artista_val = filtro_artista
     st.session_state.filtro_pais_val = filtro_pais
     st.session_state.filtro_ano_val = filtro_ano
@@ -473,10 +485,9 @@ elif st.session_state.filtro_aba == "histórico":
                     n_val = float(r['Nota_Calculada'])
                     str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                     
-                    st.markdown(f'<div class="vinyl-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
                     st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
                     
-                    # Botão para filtrar por Artista ao clicar no nome da banda
                     if st.button(f"{r['Artist']}", key=f"hist_art_{flat_idx}"):
                         st.session_state.filtro_artista_val = str(r['Artist'])
                         st.session_state.filtro_pais_val = "todos"
@@ -485,7 +496,8 @@ elif st.session_state.filtro_aba == "histórico":
                         
                     col_inf1, col_inf2 = st.columns(2)
                     with col_inf1:
-                        if st.button(f"📍 {pais_card}", key=f"hist_pai_{flat_idx}"):
+                        url_bandeira = f"https://flagcdn.com/16x12/{iso_card}.png"
+                        if st.button(f" {pais_card}", key=f"hist_pai_{flat_idx}"):
                             st.session_state.filtro_artista_val = "todos"
                             st.session_state.filtro_pais_val = str(pais_card)
                             st.session_state.filtro_ano_val = "todos"
