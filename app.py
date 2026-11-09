@@ -58,7 +58,7 @@ st.markdown("""
         margin-right: 8px;
         font-size: 16px;
     }
-    /* Remove a borda/caixa cinza arredondada padrão de botões e deixa em formato de texto limpo */
+    /* Estilização para deixar os botões de filtro compactos e alinhados como texto */
     div.stButton > button:first-child {
         background-color: transparent !important;
         color: #a0a0a0 !important;
@@ -74,6 +74,7 @@ st.markdown("""
         outline: none !important;
         display: inline !important;
         width: auto !important;
+        margin: 0 !important;
     }
     div.stButton > button:first-child:hover {
         color: #1db954 !important;
@@ -311,7 +312,7 @@ elif st.session_state.filtro_aba == "minha coleção":
                         str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                         
                         st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
-                        st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b><br>", unsafe_allow_html=True)
+                        st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
                         
                         if st.button(f"{r['Artist']}", key=f"col_art_{flat_idx}"):
                             st.session_state.filtro_artista_val = str(r['Artist'])
@@ -321,16 +322,14 @@ elif st.session_state.filtro_aba == "minha coleção":
                             st.rerun()
                             
                         html_b = obter_html_bandeira(pais_card)
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button(f"🌐 {pais_card}", key=f"col_pai_{flat_idx}"):
+                        if st.button(f"País: {html_b} {pais_card}", key=f"col_pai_{flat_idx}"):
                             st.session_state.filtro_artista_val = "todos"
                             st.session_state.filtro_pais_val = str(pais_card)
                             st.session_state.filtro_ano_val = "todos"
                             st.session_state.filtro_aba = "histórico"
                             st.rerun()
                             
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button(f"📅 {ano_val}", key=f"col_ano_{flat_idx}"):
+                        if st.button(f"Lançamento: {ano_val}", key=f"col_ano_{flat_idx}"):
                             st.session_state.filtro_artista_val = "todos"
                             st.session_state.filtro_pais_val = "todos"
                             st.session_state.filtro_ano_val = str(ano_val)
@@ -490,7 +489,7 @@ elif st.session_state.filtro_aba == "histórico":
                     str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
                     
                     st.markdown('<div class="vinyl-card">', unsafe_allow_html=True)
-                    st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b><br>", unsafe_allow_html=True)
+                    st.markdown(f"<b style='color: #ffffff; font-size: 16px;'>{r['Album']}</b>", unsafe_allow_html=True)
                     
                     if st.button(f"{r['Artist']}", key=f"hist_art_{flat_idx}"):
                         st.session_state.filtro_artista_val = str(r['Artist'])
@@ -498,16 +497,14 @@ elif st.session_state.filtro_aba == "histórico":
                         st.session_state.filtro_ano_val = "todos"
                         st.rerun()
                         
-                    url_bandeira = f"https://flagcdn.com/16x12/{iso_card}.png"
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button(f"🌐 {pais_card}", key=f"hist_pai_{flat_idx}"):
+                    html_b = obter_html_bandeira(pais_card)
+                    if st.button(f"País: {html_b} {pais_card}", key=f"hist_pai_{flat_idx}"):
                         st.session_state.filtro_artista_val = "todos"
                         st.session_state.filtro_pais_val = str(pais_card)
                         st.session_state.filtro_ano_val = "todos"
                         st.rerun()
                             
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button(f"📅 {ano_val}", key=f"hist_ano_{flat_idx}"):
+                    if st.button(f"Lançamento: {ano_val}", key=f"hist_ano_{flat_idx}"):
                         st.session_state.filtro_artista_val = "todos"
                         st.session_state.filtro_pais_val = "todos"
                         st.session_state.filtro_ano_val = str(ano_val)
