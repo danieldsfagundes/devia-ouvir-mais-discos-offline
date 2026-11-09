@@ -64,29 +64,39 @@ st.markdown("""
 st.markdown("<h1 style='color: #ffffff; font-weight: 800;'>devia ouvir mais discos</h1>", unsafe_allow_html=True)
 st.caption("Ouvindo, explorando e avaliando discos em toda a sua arte.")
 
-# Dicionário auxiliar para mapear o país à sua respectiva bandeira
-BANDEIRAS_PAISES = {
-    "Brasil": "🇧🇷",
-    "Estados Unidos": "🇺🇸",
-    "EUA": "🇺🇸",
-    "Reino Unido": "🇬🇧",
-    "Inglaterra": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    "França": "🇫🇷",
-    "Argentina": "🇦🇷",
-    "Jamaica": "🇯🇲",
-    "Canadá": "🇨🇦",
-    "Alemanha": "🇩🇪",
-    "Espanha": "🇪🇸",
-    "Itália": "🇮🇹",
-    "Portugal": "🇵🇹",
-    "Japão": "🇯🇵"
-}
-
+# Mapeamento direto e seguro para garantir o emoji correto
 def obter_bandeira(pais):
     if not isinstance(pais, str):
-        return "🏳️"
-    pais_limpo = pais.strip()
-    return BANDEIRAS_PAISES.get(pais_limpo, "🌍")
+        return "🌍"
+    pais_limpo = pais.strip().title()
+    
+    # Mapeamento direto de bandeiras
+    if "Brasil" in pais_limpo:
+        return "🇧🇷"
+    elif "Estados Unidos" in pais_limpo or "Eua" in pais_limpo or "Estados-Unidos" in pais_limpo:
+        return "🇺🇸"
+    elif "Reino Unido" in pais_limpo or "Inglaterra" in pais_limpo:
+        return "🇬🇧"
+    elif "França" in pais_limpo:
+        return "🇫🇷"
+    elif "Argentina" in pais_limpo:
+        return "🇦🇷"
+    elif "Jamaica" in pais_limpo:
+        return "🇯🇲"
+    elif "Canadá" in pais_limpo:
+        return "🇨🇦"
+    elif "Alemanha" in pais_limpo:
+        return "🇩🇪"
+    elif "Espanha" in pais_limpo:
+        return "🇪🇸"
+    elif "Itália" in pais_limpo:
+        return "🇮🇹"
+    elif "Portugal" in pais_limpo:
+        return "🇵🇹"
+    elif "Japão" in pais_limpo:
+        return "🇯🇵"
+    else:
+        return "🌍"
 
 @st.cache_data
 def load_data():
@@ -164,8 +174,8 @@ if aba == "disco do dia":
         st.markdown(f"### {album_hoje['Album']}")
         st.text(f"Artista: {album_hoje['Artist']}")
         
-        # País com bandeira
-        pais_nome = album_hoje.get('Origin', 'Brasil')
+        # País com bandeira garantida
+        pais_nome = str(album_hoje.get('Origin', 'Brasil')).strip()
         bandeira = obter_bandeira(pais_nome)
         st.text(f"País: {bandeira} {pais_nome}")
         
@@ -234,7 +244,7 @@ elif aba == "coleção & histórico":
         i, r = row
         col_atual = cols[idx % 4]
         with col_atual:
-            pais_card = r.get('Origin', 'Brasil')
+            pais_card = str(r.get('Origin', 'Brasil')).strip()
             bandeira_card = obter_bandeira(pais_card)
             st.markdown(f"""
                 <div class="vinyl-card">
@@ -262,7 +272,7 @@ elif aba == "coleção & histórico":
                 st.markdown(f"### {row_sel['Album']}")
                 st.text(f"Artista: {row_sel['Artist']}")
                 
-                pais_sel = row_sel.get('Origin', 'Brasil')
+                pais_sel = str(row_sel.get('Origin', 'Brasil')).strip()
                 bandeira_sel = obter_bandeira(pais_sel)
                 st.text(f"País: {bandeira_sel} {pais_sel}")
                 
