@@ -130,7 +130,8 @@ def carregar_dados_frescos():
         'Country': 'Brasil',
         'Spotify_Link': 'Spotify',
         'Colecao': 'Não',
-        'Released': '1975'
+        'Released': '1975',
+        'Ultima_Audicao': ''
     }
     for col, val_padrao in colunas_obrigatorias.items():
         if col not in df.columns:
@@ -179,13 +180,7 @@ if df_albums.empty:
     st.stop()
 
 if 'filtro_aba' not in st.session_state:
-    st.session_state.filtro_aba = "histórico"
-if 'filtro_artista_val' not in st.session_state:
-    st.session_state.filtro_artista_val = "todos"
-if 'filtro_pais_val' not in st.session_state:
-    st.session_state.filtro_pais_val = "todos"
-if 'filtro_ano_val' not in st.session_state:
-    st.session_state.filtro_ano_val = "todos"
+    st.session_state.filtro_aba = "álbum do dia"  # Abertura padrão no Álbum do Dia
 
 # MENU LATERAL REORGANIZADO
 st.sidebar.markdown("### 🎛️ menu")
@@ -194,7 +189,7 @@ abas_disponiveis = ["álbum do dia", "histórico", "estatísticas", "minha cole�
 try:
     default_idx = abas_disponiveis.index(st.session_state.filtro_aba)
 except:
-    default_idx = 1
+    default_idx = 0
 
 aba = st.sidebar.radio(
     "navegar", 
@@ -208,30 +203,47 @@ if aba != st.session_state.filtro_aba:
 
 # 1. ABA: ÁLBUM DO DIA
 if st.session_state.filtro_aba == "álbum do dia":
-    today_seed = int(datetime.date.today().strftime("%Y%m%d"))
-    album_hoje = df_albums.sample(1, random_state=today_seed).iloc[0]
+    today_str = str(datetime.date.today())
+    
+    # Verificar se há algum álbum anterior não avaliado (Liked_Tracks == 0 ou Cover_Rating == 0)
+    pendentes = df_albums[(df_albums['Liked_Tracks'] == 0) & (df_albums['Cover_Rating'] == 0)]
+    
+    album_alvo = None
+    if not pendentes.empty:
+        # Pega o primeiro pendente para o usuário avaliar antes
+        album_alvo = pendentes.iloc[0]
+        st.markdown(f"""
+            <div class="vinyl-card" style="border: 1px solid #f59e0b; margin-bottom: 20px;">
+                <b style="color: #f59e0b; font-size: 16px;">⚠️ Álbum Pendente de Avaliação</b><br>
+                <span style="color: #ccc; font-size: 14px;">Você tem um álbum anterior que ainda não foi avaliado. Que tal avaliá-lo agora?</span>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Seleciona o álbum do dia baseado na data atual
+        today_seed = int(datetime.date.today().strftime("%Y%m%d"))
+        album_alvo = df_albums.sample(1, random_state=today_seed).iloc[0]
     
     st.markdown("### 💿 álbum do dia")
     
     col_pop1, col_pop2 = st.columns([1, 2])
     
     with col_pop1:
-        st.markdown(f"### {album_hoje['Album']}")
-        st.markdown(f"**Artista:** {album_hoje['Artist']}")
+        st.markdown(f"### {album_alvo['Album']}")
+        st.markdown(f"**Artista:** {album_alvo['Artist']}")
         
-        pais_nome = str(album_hoje.get('Country', 'Brasil')).strip()
+        pais_nome = str(album_alvo.get('Country', 'Brasil')).strip()
         html_bandeira = obter_html_bandeira(pais_nome)
         st.markdown(f"**País:** {html_bandeira} {pais_nome}", unsafe_allow_html=True)
         
-        st.markdown(f"**Lançamento:** 📅 {int(album_hoje['Released']) if pd.notna(album_hoje['Released']) else ''}")
+        st.markdown(f"**Lançamento:** 📅 {int(album_alvo['Released']) if pd.notna(album_alvo['Released']) else ''}")
         
-        capa_url = buscar_capa_album(album_hoje['Artist'], album_hoje['Album'])
+        capa_url = buscar_capa_album(album_alvo['Artist'], album_alvo['Album'])
         if capa_url:
-            st.image(capa_url, caption=album_hoje['Album'], use_column_width=True)
+            st.image(capa_url, caption=album_alvo['Album'], use_column_width=True)
         else:
             st.info("💿 Capa indisponível no momento")
         
-        url_spotify = obter_link_spotify(album_hoje)
+        url_spotify = obter_link_spotify(album_alvo)
         st.markdown(f"""
             <a href="{url_spotify}" target="_blank" class="spotify-btn">
                 <span class="spotify-icon">🎧</span> ouvir álbum completo
@@ -240,22 +252,23 @@ if st.session_state.filtro_aba == "álbum do dia":
         
     with col_pop2:
         st.markdown("#### 🎵 registre sua audição")
-        st.markdown(f"**Nota atual da capa:** {render_estrelas(album_hoje.get('Cover_Rating', 0))}")
+        st.markdown(f"**Nota atual da capa:** {render_estrelas(album_alvo.get('Cover_Rating', 0))}")
         st.markdown("alterar nota da capa (1 a 5)")
         feedback_estrelas = st.feedback("stars", key="pop_cov_feedback")
         
-        tot_p = st.number_input("total de músicas", 1, 30, int(float(album_hoje.get('Total_Tracks', 10))), key="pop_tot")
-        lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_hoje.get('Liked_Tracks', 0))), key="pop_lik")
+        tot_p = st.number_input("total de músicas", 1, 30, int(float(album_alvo.get('Total_Tracks', 10))), key="pop_tot")
+        lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_alvo.get('Liked_Tracks', 0))), key="pop_lik")
         
         if st.button("salvar audição do dia", type="primary"):
             df_all = pd.read_csv("albums.csv", dtype=str)
-            m_idx = df_all[(df_all['Album'] == str(album_hoje['Album'])) & (df_all['Artist'] == str(album_hoje['Artist']))].index
+            m_idx = df_all[(df_all['Album'] == str(album_alvo['Album'])) & (df_all['Artist'] == str(album_alvo['Artist']))].index
             if len(m_idx) > 0:
                 idx_s = m_idx[0]
                 if feedback_estrelas is not None:
                     df_all.loc[idx_s, 'Cover_Rating'] = str(int(feedback_estrelas + 1))
                 df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_p))
                 df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_p))
+                df_all.loc[idx_s, 'Ultima_Audicao'] = today_str
                 df_all.to_csv("albums.csv", index=False)
             st.success("audição registrada com sucesso!")
             st.rerun()
@@ -587,7 +600,8 @@ elif st.session_state.filtro_aba == "inserir manualmente":
                 'Total_Tracks': str(int(m_tot)),
                 'Liked_Tracks': str(int(m_lik)),
                 'Favorite_Track': str(m_fav),
-                'My_Review': ''
+                'My_Review': '',
+                'Ultima_Audicao': ''
             }])
             df_atualizado = pd.concat([df_all, novo_registro], ignore_index=True)
             df_atualizado.to_csv("albums.csv", index=False)
