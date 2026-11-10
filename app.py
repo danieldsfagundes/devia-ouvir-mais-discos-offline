@@ -185,14 +185,14 @@ if 'filtro_aba' not in st.session_state:
 if 'ignorar_pendente' not in st.session_state:
     st.session_state.ignorar_pendente = False
 
-# MENU LATERAL REORGANIZADO
+# MENU LATERAL COM A ORDEM SOLICITADA
 st.sidebar.markdown("### 🎛️ menu")
 abas_disponiveis = [
     "álbum do dia", 
-    "avaliar depois", 
-    "não avaliados", 
     "histórico", 
     "minha coleção", 
+    "avaliar depois", 
+    "não avaliados", 
     "estatísticas", 
     "inserir manualmente"
 ]
@@ -216,7 +216,6 @@ if aba != st.session_state.filtro_aba:
 if st.session_state.filtro_aba == "álbum do dia":
     today_str = str(datetime.date.today())
     
-    # Pendentes / não avaliados que estão em aberto
     pendentes = df_albums[df_albums['Status'].str.strip().str.lower() == 'pendente']
     
     album_alvo = None
@@ -258,7 +257,6 @@ if st.session_state.filtro_aba == "álbum do dia":
     
     if album_alvo is None or (not pendentes.empty and st.session_state.ignorar_pendente):
         today_seed = int(datetime.date.today().strftime("%Y%m%d"))
-        # Pega aleatório entre os pendentes ou geral se não houver pendentes
         disponiveis_hoje = df_albums[df_albums['Status'].str.strip().str.lower().isin(['pendente', 'avaliado'])]
         if disponiveis_hoje.empty:
             disponiveis_hoje = df_albums
@@ -335,101 +333,7 @@ if st.session_state.filtro_aba == "álbum do dia":
                 st.success("Movido para 'Não avaliados'!")
                 st.rerun()
 
-# 2. ABA: AVALIAR DEPOIS
-elif st.session_state.filtro_aba == "avaliar depois":
-    st.markdown("### ⏳ fila de espera (avaliar depois)")
-    df_depois = df_albums[df_albums['Status'].str.strip().str.lower() == 'avaliar depois'].copy()
-    st.caption(f"exibindo {len(df_depois)} discos guardados para ouvir e avaliar depois.")
-    
-    if df_depois.empty:
-        st.info("💡 Nenhum disco na fila 'Avaliar depois' no momento.")
-    else:
-        for idx, r in df_depois.iterrows():
-            st.markdown(f"""
-                <div class="vinyl-card">
-                    <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b> — <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
-                    <span style="color: #ccc; font-size: 13px;">📅 {int(r['Released']) if pd.notna(r['Released']) else ''} | {r.get('Country', 'Brasil')}</span>
-                </div>
-            """, unsafe_allow_html=True)
-            col_ad1, col_ad2 = st.columns(2)
-            with col_ad1:
-                if st.button("🎵 Avaliar agora", key=f"btn_ev_dep_{idx}0"):
-                    df_all = pd.read_csv("albums.csv", dtype=str)
-                    m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
-                    if len(m_idx) > 0:
-                        df_all.loc[m_idx[0], 'Status'] = 'Pendente'
-                        df_all.to_csv("albums.csv", index=False)
-                    st.session_state.filtro_aba = "álbum do dia"
-                    st.rerun()
-            with col_ad2:
-                if st.button("❌ Não quero avaliar", key=f"btn_ev_dep_{idx}1"):
-                    df_all = pd.read_csv("albums.csv", dtype=str)
-                    m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
-                    if len(m_idx) > 0:
-                        df_all.loc[m_idx[0], 'Status'] = 'Não Avaliado'
-                        df_all.to_csv("albums.csv", index=False)
-                    st.rerun()
-
-# 3. ABA: NÃO AVALIADOS
-elif st.session_state.filtro_aba == "não avaliados":
-    st.markdown("### ❌ discos não avaliados (descartados)")
-    df_nao = df_albums[df_albums['Status'].str.strip().str.lower() == 'não avaliado'].copy()
-    st.caption(f"exibindo {len(df_nao)} discos que você optou por não avaliar.")
-    
-    if df_nao.empty:
-        st.info("💡 Nenhum disco descartado.")
-    else:
-        for idx, r in df_nao.iterrows():
-            st.markdown(f"""
-                <div class="vinyl-card">
-                    <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b> — <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("🔄 Voltar para Avaliar Depois", key=f"btn_nao_ev_{idx}"):
-                df_all = pd.read_csv("albums.csv", dtype=str)
-                m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
-                if len(m_idx) > 0:
-                    df_all.loc[m_idx[0], 'Status'] = 'Avaliar Depois'
-                    df_all.to_csv("albums.csv", index=False)
-                st.rerun()
-
-# 4. ABA: MINHA COLEÇÃO
-elif st.session_state.filtro_aba == "minha coleção":
-    st.markdown("### 💽 minha coleção de vinis")
-    df_colecao = df_albums[df_albums['Colecao'].str.strip().str.lower().isin(['sim', 's', 'yes', 'true', '1'])].copy()
-    df_colecao = df_colecao.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
-    
-    st.caption(f"exibindo {len(df_colecao)} discos cadastrados na sua coleção.")
-    if df_colecao.empty:
-        st.info("💡 Nenhum disco marcado como 'Sim' na coleção ainda.")
-    else:
-        lista_discos = df_colecao.head(24).to_dict('records')
-        for row_idx in range(0, len(lista_discos), 4):
-            cols = st.columns(4)
-            for col_idx in range(4):
-                flat_idx = row_idx + col_idx
-                if flat_idx < len(lista_discos):
-                    r = lista_discos[flat_idx]
-                    with cols[col_idx]:
-                        pais_card = str(r.get('Country', 'Brasil')).strip()
-                        ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
-                        c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
-                        n_val = float(r['Nota_Calculada'])
-                        str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
-                        html_bandeira = obter_html_bandeira(pais_card)
-                        
-                        st.markdown(f"""
-                            <div class="vinyl-card">
-                                <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
-                                <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br><br>
-                                <span style="color: #ccc; font-size: 13px;">{html_bandeira} {pais_card}</span><br>
-                                <span style="color: #ccc; font-size: 13px;">📅 {ano_val}</span>
-                                <hr style="border: 0.5px solid #333; margin: 10px 0;">
-                                <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-# 5. ABA: HISTÓRICO
+# 2. ABA: HISTÓRICO
 elif st.session_state.filtro_aba == "histórico":
     st.markdown("### 📚 histórico")
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
@@ -486,6 +390,100 @@ elif st.session_state.filtro_aba == "histórico":
                             <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
                         </div>
                     """, unsafe_allow_html=True)
+
+# 3. ABA: MINHA COLEÇÃO
+elif st.session_state.filtro_aba == "minha coleção":
+    st.markdown("### 💽 minha coleção de vinis")
+    df_colecao = df_albums[df_albums['Colecao'].str.strip().str.lower().isin(['sim', 's', 'yes', 'true', '1'])].copy()
+    df_colecao = df_colecao.sort_values(by='Nota_Calculada', ascending=False).reset_index(drop=True)
+    
+    st.caption(f"exibindo {len(df_colecao)} discos cadastrados na sua coleção.")
+    if df_colecao.empty:
+        st.info("💡 Nenhum disco marcado como 'Sim' na coleção ainda.")
+    else:
+        lista_discos = df_colecao.head(24).to_dict('records')
+        for row_idx in range(0, len(lista_discos), 4):
+            cols = st.columns(4)
+            for col_idx in range(4):
+                flat_idx = row_idx + col_idx
+                if flat_idx < len(lista_discos):
+                    r = lista_discos[flat_idx]
+                    with cols[col_idx]:
+                        pais_card = str(r.get('Country', 'Brasil')).strip()
+                        ano_val = int(r['Released']) if pd.notna(r['Released']) else ''
+                        c_val = int(float(r['Cover_Rating'])) if pd.notna(r['Cover_Rating']) and str(r['Cover_Rating']).strip() != '' else 0
+                        n_val = float(r['Nota_Calculada'])
+                        str_nota = f"{n_val:.1f}/5" if c_val > 0 else "Não avaliado"
+                        html_bandeira = obter_html_bandeira(pais_card)
+                        
+                        st.markdown(f"""
+                            <div class="vinyl-card">
+                                <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b><br>
+                                <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br><br>
+                                <span style="color: #ccc; font-size: 13px;">{html_bandeira} {pais_card}</span><br>
+                                <span style="color: #ccc; font-size: 13px;">📅 {ano_val}</span>
+                                <hr style="border: 0.5px solid #333; margin: 10px 0;">
+                                <span style="color: #1db954; font-size: 12px;">Capa: {c_val}/5 | ⭐ Nota Final: {str_nota}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+# 4. ABA: AVALIAR DEPOIS
+elif st.session_state.filtro_aba == "avaliar depois":
+    st.markdown("### ⏳ fila de espera (avaliar depois)")
+    df_depois = df_albums[df_albums['Status'].str.strip().str.lower() == 'avaliar depois'].copy()
+    st.caption(f"exibindo {len(df_depois)} discos guardados para ouvir e avaliar depois.")
+    
+    if df_depois.empty:
+        st.info("💡 Nenhum disco na fila 'Avaliar depois' no momento.")
+    else:
+        for idx, r in df_depois.iterrows():
+            st.markdown(f"""
+                <div class="vinyl-card">
+                    <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b> — <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span><br>
+                    <span style="color: #ccc; font-size: 13px;">📅 {int(r['Released']) if pd.notna(r['Released']) else ''} | {r.get('Country', 'Brasil')}</span>
+                </div>
+            """, unsafe_allow_html=True)
+            col_ad1, col_ad2 = st.columns(2)
+            with col_ad1:
+                if st.button("🎵 Avaliar agora", key=f"btn_ev_dep_{idx}0"):
+                    df_all = pd.read_csv("albums.csv", dtype=str)
+                    m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
+                    if len(m_idx) > 0:
+                        df_all.loc[m_idx[0], 'Status'] = 'Pendente'
+                        df_all.to_csv("albums.csv", index=False)
+                    st.session_state.filtro_aba = "álbum do dia"
+                    st.rerun()
+            with col_ad2:
+                if st.button("❌ Não quero avaliar", key=f"btn_ev_dep_{idx}1"):
+                    df_all = pd.read_csv("albums.csv", dtype=str)
+                    m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
+                    if len(m_idx) > 0:
+                        df_all.loc[m_idx[0], 'Status'] = 'Não Avaliado'
+                        df_all.to_csv("albums.csv", index=False)
+                    st.rerun()
+
+# 5. ABA: NÃO AVALIADOS
+elif st.session_state.filtro_aba == "não avaliados":
+    st.markdown("### ❌ discos não avaliados (descartados)")
+    df_nao = df_albums[df_albums['Status'].str.strip().str.lower() == 'não avaliado'].copy()
+    st.caption(f"exibindo {len(df_nao)} discos que você optou por não avaliar.")
+    
+    if df_nao.empty:
+        st.info("💡 Nenhum disco descartado.")
+    else:
+        for idx, r in df_nao.iterrows():
+            st.markdown(f"""
+                <div class="vinyl-card">
+                    <b style="color: #ffffff; font-size: 16px;">{r['Album']}</b> — <span style="color: #a0a0a0; font-size: 14px;">{r['Artist']}</span>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("🔄 Voltar para Avaliar Depois", key=f"btn_nao_ev_{idx}"):
+                df_all = pd.read_csv("albums.csv", dtype=str)
+                m_idx = df_all[(df_all['Album'] == str(r['Album'])) & (df_all['Artist'] == str(r['Artist']))].index
+                if len(m_idx) > 0:
+                    df_all.loc[m_idx[0], 'Status'] = 'Avaliar Depois'
+                    df_all.to_csv("albums.csv", index=False)
+                st.rerun()
 
 # 6. ABA: ESTATÍSTICAS
 elif st.session_state.filtro_aba == "estatísticas":
