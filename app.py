@@ -278,7 +278,7 @@ if st.session_state.filtro_aba == "álbum do dia":
         
         capa_url = buscar_capa_album(album_alvo['Artist'], album_alvo['Album'])
         if capa_url:
-            st.image(capa_url, caption=album_alvo['Album'], use_column_width=True)
+            st.image(capa_url, caption=album_alvo['Album'], width=280)
         else:
             st.info("💿 Capa indisponível no momento")
         
@@ -298,6 +298,11 @@ if st.session_state.filtro_aba == "álbum do dia":
         tot_p = st.number_input("total de músicas", 1, 30, int(float(album_alvo.get('Total_Tracks', 10))), key="pop_tot")
         lik_p = st.number_input("músicas que gostou", 0, tot_p, int(float(album_alvo.get('Liked_Tracks', 0))), key="pop_lik")
         
+        # Seleção de Coleção
+        colecao_atual = str(album_alvo.get('Colecao', 'Não')).strip().capitalize()
+        idx_col_pop = 0 if colecao_atual in ['Sim', 'S', 'True', 'Yes'] else 1
+        pop_colecao = st.selectbox("minha coleção", ["Sim", "Não"], index=idx_col_pop, key="pop_colecao_select")
+        
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
             if st.button("salvar audição", type="primary"):
@@ -309,6 +314,7 @@ if st.session_state.filtro_aba == "álbum do dia":
                         df_all.loc[idx_s, 'Cover_Rating'] = str(int(feedback_estrelas + 1))
                     df_all.loc[idx_s, 'Total_Tracks'] = str(int(tot_p))
                     df_all.loc[idx_s, 'Liked_Tracks'] = str(int(lik_p))
+                    df_all.loc[idx_s, 'Colecao'] = str(pop_colecao)
                     df_all.loc[idx_s, 'Status'] = 'Avaliado'
                     df_all.to_csv("albums.csv", index=False)
                 st.session_state.ignorar_pendente = False
