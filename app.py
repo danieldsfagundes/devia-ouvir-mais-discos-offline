@@ -536,6 +536,21 @@ elif st.session_state.filtro_aba == "estatísticas":
         st.metric("aproveitamento médio de faixas", f"{media_aproveitamento:.1f}%")
     with c_s3:
         st.metric("média de nota das capas", f"{df_albums['Cover_Rating'].astype(float).mean():.1f} / 5")
+    
+    st.markdown("---")
+    st.markdown("### 📥 backup dos dados")
+    st.caption("baixe uma cópia atualizada da sua planilha de discos (`albums.csv`) para o seu computador.")
+    
+    if os.path.exists("albums.csv"):
+        with open("albums.csv", "rb") as f:
+            st.download_button(
+                label="📥 baixar arquivo albums.csv",
+                data=f,
+                file_name="albums.csv",
+                mime="text/csv"
+            )
+    else:
+        st.info("Nenhum arquivo albums.csv encontrado para download.")
 
 # 5. ABA: INSERIR MANUALMENTE
 elif st.session_state.filtro_aba == "inserir manualmente":
